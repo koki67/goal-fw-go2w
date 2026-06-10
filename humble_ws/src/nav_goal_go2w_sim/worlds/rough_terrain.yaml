@@ -1,0 +1,29 @@
+name: rough_terrain
+resolution: 0.05
+origin: [-7.0, -3.0]
+size: [280, 200]
+spawn: [3.0, -0.25, 3.14159]
+walls:
+  # Horizontal corridor: x=[-5, 5], y=[-1.5, 1.0]
+  - {type: rect, x: -5.1, y: -1.6, w: 10.3, h: 0.10}   # bottom
+  - {type: rect, x:  5.0, y: -1.6, w: 0.10, h: 2.7}    # right dead-end
+  - {type: rect, x: -2.5, y:  1.0, w: 7.6,  h: 0.10}   # top (junction to right)
+  # Vertical arm: x=[-5, -2.5], y=[1.0, 5.0]
+  - {type: rect, x: -5.1, y: -1.6, w: 0.10, h: 6.7}    # left wall (full height)
+  - {type: rect, x: -2.5, y:  1.0, w: 0.10, h: 4.1}    # inner right wall of arm
+  - {type: rect, x: -5.1, y:  5.0, w: 2.7,  h: 0.10}   # top dead-end
+elevation_features:
+  # Coarse undulating hills — drives slope costs across the field
+  - type: fractal_noise
+    amplitude: 0.14
+    wavelength: 3.0
+    octaves: 2
+    persistence: 0.50
+    seed: 42
+  # Fine-scale bumps — breaks up plane fits and drives step costs in patches
+  - type: fractal_noise
+    amplitude: 0.07
+    wavelength: 0.60
+    octaves: 1
+    persistence: 0.50
+    seed: 99

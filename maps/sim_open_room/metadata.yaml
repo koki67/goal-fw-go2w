@@ -1,0 +1,12 @@
+name: sim_open_room
+source: /home/user/ws/goal-fw-go2w/humble_ws/src/nav_goal_go2w_sim/worlds/open_room.yaml
+created: '2026-06-10T15:10:17.104521+09:00'
+generator: gen_sim_map
+points: 22714
+grid:
+  width: 300
+  height: 200
+  resolution: 0.05
+  origin:
+  - -6.0
+  - -5.0

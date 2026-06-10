@@ -1,0 +1,14 @@
+name: narrow_corridor
+resolution: 0.05
+origin: [-5.0, -5.0]
+size: [260, 220]
+spawn: [-3.5, 0.0, 0.0]
+walls:
+  - {type: rect, x: -4.0, y: -0.75, w: 8.0, h: 0.10}
+  - {type: rect, x: -4.0, y: 0.65, w: 8.0, h: 0.10}
+  - {type: rect, x: -4.0, y: -0.75, w: 0.10, h: 1.50}
+  - {type: rect, x: 3.90, y: 0.65, w: 0.10, h: 4.0}
+  - {type: rect, x: 2.50, y: 0.65, w: 0.10, h: 2.7}
+  - {type: rect, x: 2.50, y: 3.25, w: 1.50, h: 0.10}
+  - {type: rect, x: 3.90, y: 3.25, w: 0.10, h: 1.40}
+  - {type: rect, x: 2.50, y: 4.55, w: 1.50, h: 0.10}
