@@ -1,0 +1,19 @@
+mppi_trajectory_lines:
+  ros__parameters:
+    input_topic: /trajectories
+    output_topic: /mppi_trajectory_lines
+    line_width: 0.025
+    alpha: 0.55
+    color_rgb: [255.0, 96.0, 32.0]
+    z_offset: 0.08
+    optimal_line_width: 0.04
+    optimal_alpha: 0.95
+    optimal_color_rgb: [255.0, 0.0, 0.0]
+    optimal_z_offset: 0.12
+    lifetime_sec: 0.5
+    max_markers: 400
+    point_stride: 1
+    pose_markers_per_trajectory: 10
+    preserve_marker_color: false
+    candidate_marker_namespace: Candidate Trajectories
+    optimal_marker_namespace: Optimal Trajectory

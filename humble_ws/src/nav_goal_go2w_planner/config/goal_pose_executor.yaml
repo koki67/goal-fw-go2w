@@ -1,0 +1,25 @@
+goal_pose_executor:
+  ros__parameters:
+    goal_pose_topic: /goal_pose          # RViz "2D Nav Goal" default
+    global_frame: map
+    robot_base_frame: base_link
+    min_goal_update_distance: 0.1        # operator clicks are intentional
+    goal_update_strategy: preempt        # new click wins immediately
+    goal_timeout_sec: 300.0
+    result_check_rate: 2.0
+    tf_timeout: 0.2
+
+    # Goal validation against the served static map. Unknown cells stay
+    # reachable: the pre-built map may be incomplete and NavFn plans with
+    # allow_unknown — only occupied space invalidates a goal.
+    goal_validation_map_topic: /map
+    goal_validation_reachable_cost_threshold: 0
+    goal_validation_seed_search_radius: 3
+    goal_validation_connectivity: 8
+    treat_unknown_as_reachable: true
+
+    # Localization health gating.
+    require_localization: true
+    localization_state_topic: /localization/state
+    dispatch_localization_states: ["TRACKING", "DEGRADED"]
+    cancel_localization_states: ["LOST"]
