@@ -67,7 +67,6 @@ if [ "$MODE" = "sim" ]; then
         use_rviz:=false \
         odom_drift_yaw_per_m:=0.01 > "$LOG_DIR/bringup.log" 2>&1 &
     BRINGUP_PID=$!
-    SIM_TIME_FLAG="--use-sim-time"
 else
     if [ ! -e "$BAG_PATH" ]; then
         echo "Bag not found at: $BAG_PATH" >&2
@@ -80,7 +79,6 @@ else
         bridge_dry_run:=true \
         use_sim_time:=true > "$LOG_DIR/bringup.log" 2>&1 &
     BRINGUP_PID=$!
-    SIM_TIME_FLAG="--use-sim-time"
 fi
 
 cleanup() {
@@ -103,7 +101,7 @@ if [ "$MODE" = "bag" ]; then
 fi
 
 echo "[smoke] Publishing /initialpose..."
-ros2 topic pub --once $SIM_TIME_FLAG /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
+ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
     '{header: {frame_id: map}, pose: {pose: {position: {x: 0.0, y: 0.0}, orientation: {w: 1.0}}}}' \
     > "$LOG_DIR/initialpose.log" 2>&1
 
@@ -132,7 +130,7 @@ if ! timeout 5 ros2 run tf2_ros tf2_echo map odom > "$LOG_DIR/tf_echo.log" 2>&1;
 fi
 
 echo "[smoke] Publishing /goal_pose..."
-ros2 topic pub --once $SIM_TIME_FLAG /goal_pose geometry_msgs/msg/PoseStamped \
+ros2 topic pub --once /goal_pose geometry_msgs/msg/PoseStamped \
     '{header: {frame_id: map}, pose: {position: {x: 2.0, y: 0.0}, orientation: {w: 1.0}}}' \
     > "$LOG_DIR/goal.log" 2>&1
 
