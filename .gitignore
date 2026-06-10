@@ -1,0 +1,17 @@
+humble_ws/build/
+humble_ws/install/
+humble_ws/log/
+bags/
+output/
+
+# Map artifacts are deployment data, not source. The generated simulator map
+# (maps/sim_*) is committed so the desktop sim works out of the box.
+maps/*
+!maps/sim_*/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.vscode/
+.idea/
+*.xauth
