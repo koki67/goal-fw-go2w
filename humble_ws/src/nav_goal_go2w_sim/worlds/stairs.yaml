@@ -1,0 +1,20 @@
+name: stairs
+resolution: 0.05
+origin: [-3.0, -2.5]
+size: [180, 100]
+spawn: [-2.0, 0.0, 0.0]
+walls:
+  - {type: rect, x: -2.5, y: -1.5, w: 5.0, h: 0.10}
+  - {type: rect, x: -2.5, y:  1.40, w: 5.0, h: 0.10}
+  - {type: rect, x: -2.5, y: -1.5, w: 0.10, h: 3.0}
+  - {type: rect, x:  2.40, y: -1.5, w: 0.10, h: 3.0}
+elevation_features:
+  # 5-tread staircase: 18 cm rise, 25 cm tread depth (Go2W-climbable).
+  - {type: rect, x: 0.00, y: -1.0, w: 0.25, h: 2.0, z: 0.18}
+  - {type: rect, x: 0.25, y: -1.0, w: 0.25, h: 2.0, z: 0.36}
+  - {type: rect, x: 0.50, y: -1.0, w: 0.25, h: 2.0, z: 0.54}
+  - {type: rect, x: 0.75, y: -1.0, w: 0.25, h: 2.0, z: 0.72}
+  - {type: rect, x: 1.00, y: -1.0, w: 0.25, h: 2.0, z: 0.90}
+  # Upper landing the frontier selector should pick as a goal once the
+  # accumulator has observed enough of the area to mark it free.
+  - {type: rect, x: 1.25, y: -1.0, w: 1.10, h: 2.0, z: 0.90}

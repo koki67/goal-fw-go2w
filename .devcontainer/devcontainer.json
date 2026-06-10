@@ -1,0 +1,34 @@
+{
+  "name": "goal-fw-go2w desktop (Humble)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspaces/goal-fw-go2w",
+  "remoteUser": "root",
+  "postCreateCommand": "bash -c 'source /opt/ros/humble/setup.bash && rosdep update --rosdistro humble && apt-get update -q && rosdep install --from-paths humble_ws/src --ignore-src -r -y --rosdistro humble && rm -rf /var/lib/apt/lists/* && printf \"\\n[goal-fw-go2w] goal-fw-go2w desktop (Humble) setup finished.\\n\\n\"'",
+  "runArgs": [
+    "--net=host",
+    "--ipc=host",
+    "--privileged"
+  ],
+  "containerEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "QT_X11_NO_MITSHM": "1",
+    "RMW_IMPLEMENTATION": "rmw_cyclonedds_cpp",
+    "ROS_DOMAIN_ID": "0"
+  },
+  "mounts": [
+    "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
+  ],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+      },
+      "extensions": [
+        "ms-iot.vscode-ros"
+      ]
+    }
+  }
+}

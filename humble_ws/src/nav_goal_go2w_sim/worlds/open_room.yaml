@@ -1,0 +1,14 @@
+name: open_room
+resolution: 0.05
+origin: [-6.0, -5.0]
+size: [300, 200]
+spawn: [0.0, 0.0, 0.0]
+walls:
+  - {type: rect, x: -4.0, y: -4.0, w: 8.0, h: 0.10}
+  - {type: rect, x: -4.0, y: 3.90, w: 8.0, h: 0.10}
+  - {type: rect, x: -4.0, y: -4.0, w: 0.10, h: 8.0}
+  - {type: rect, x: 3.90, y: -4.0, w: 0.10, h: 3.10}
+  - {type: rect, x: 3.90, y: 0.90, w: 0.10, h: 3.10}
+  - {type: rect, x: 4.0, y: -1.0, w: 4.5, h: 0.10}
+  - {type: rect, x: 4.0, y: 0.90, w: 4.5, h: 0.10}
+  - {type: rect, x: 8.40, y: -1.0, w: 0.10, h: 2.0}

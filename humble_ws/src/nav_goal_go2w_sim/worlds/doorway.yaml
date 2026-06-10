@@ -1,0 +1,12 @@
+name: doorway
+resolution: 0.05
+origin: [-6.0, -4.0]
+size: [240, 160]
+spawn: [-3.0, 0.0, 0.0]
+walls:
+  - {type: rect, x: -5.0, y: -3.0, w: 10.0, h: 0.10}
+  - {type: rect, x: -5.0, y: 2.90, w: 10.0, h: 0.10}
+  - {type: rect, x: -5.0, y: -3.0, w: 0.10, h: 6.0}
+  - {type: rect, x: 4.90, y: -3.0, w: 0.10, h: 6.0}
+  - {type: rect, x: -0.10, y: -3.0, w: 0.10, h: 2.55}
+  - {type: rect, x: -0.10, y: 0.45, w: 0.10, h: 2.55}

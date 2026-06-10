@@ -1,0 +1,12 @@
+name: t_junction
+resolution: 0.05
+origin: [-6.0, -6.0]
+size: [260, 240]
+spawn: [0.0, -4.0, 1.5708]
+walls:
+  - {type: rect, x: -0.80, y: -5.0, w: 0.10, h: 6.0}
+  - {type: rect, x: 0.70, y: -5.0, w: 0.10, h: 6.0}
+  - {type: rect, x: -5.0, y: 0.90, w: 10.0, h: 0.10}
+  - {type: rect, x: -5.0, y: 2.40, w: 10.0, h: 0.10}
+  - {type: rect, x: -5.0, y: 0.90, w: 0.10, h: 1.60}
+  - {type: rect, x: 4.90, y: 0.90, w: 0.10, h: 1.60}

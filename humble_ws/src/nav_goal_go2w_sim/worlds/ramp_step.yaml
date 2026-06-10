@@ -1,0 +1,14 @@
+name: ramp_step
+resolution: 0.05
+origin: [-4.0, -3.0]
+size: [180, 120]
+spawn: [-2.5, 0.0, 0.0]
+walls:
+  - {type: rect, x: -3.5, y: -2.5, w: 8.0, h: 0.10}
+  - {type: rect, x: -3.5, y: 2.40, w: 8.0, h: 0.10}
+  - {type: rect, x: -3.5, y: -2.5, w: 0.10, h: 5.0}
+  - {type: rect, x: 4.40, y: -2.5, w: 0.10, h: 5.0}
+  - {type: rect, x: 1.5, y: -2.0, w: 0.10, h: 1.2}
+elevation_features:
+  - {type: ramp, x: -1.5, y: -0.8, w: 1.0, h: 1.6, axis: x, start_z: 0.0, end_z: 0.213}
+  - {type: rect, x: 0.8, y: -0.8, w: 1.0, h: 1.6, z: 0.10}

@@ -1,0 +1,7 @@
+map_viz_layers:
+  ros__parameters:
+    # Visualization-only filter. Nav2 still plans on /global_costmap/costmap,
+    # but RViz shows this topic so unknown cells are not drawn twice with /map.
+    input_topic: /global_costmap/costmap
+    output_topic: /global_costmap/costmap_known_only
+    unknown_replacement_value: 0

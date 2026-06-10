@@ -1,0 +1,13 @@
+name: dead_end
+resolution: 0.05
+origin: [-3.0, -6.0]
+size: [220, 240]
+spawn: [0.0, -3.5, 1.5708]
+walls:
+  - {type: rect, x: -1.0, y: -5.0, w: 0.10, h: 10.0}
+  - {type: rect, x: 1.0, y: -5.0, w: 0.10, h: 10.0}
+  - {type: rect, x: -1.0, y: 4.90, w: 2.10, h: 0.10}
+  - {type: rect, x: -1.0, y: -5.0, w: 2.10, h: 0.10}
+  - {type: rect, x: 1.0, y: -0.10, w: 4.0, h: 0.10}
+  - {type: rect, x: 1.0, y: 1.10, w: 4.0, h: 0.10}
+  - {type: rect, x: 4.90, y: -0.10, w: 0.10, h: 1.20}
