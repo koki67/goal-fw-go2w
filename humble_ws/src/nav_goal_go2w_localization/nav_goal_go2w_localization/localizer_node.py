@@ -5,12 +5,11 @@ The default input is D-LIO's deskewed cloud, which is published in the odom
 frame — registering it against the map-frame target with the current
 map->odom as the initial guess yields the refined map->odom directly.
 
-Registration runs on cloud arrival (throttled to registration_rate_hz in
-wall time — a sim-time timer would stall whenever /clock lags wall time),
-in its own callback group on a multi-threaded executor; a separate TF timer
-(default 50 Hz) re-stamps the latest accepted map->odom, future-dated by
-transform_tolerance so Nav2 lookups never extrapolate between registration
-updates (same trick AMCL uses).
+Two timers run in separate callback groups on a multi-threaded executor:
+  * registration (default 2 Hz): heavy GICP work
+  * TF broadcast (default 50 Hz): re-stamps the latest accepted map->odom,
+    future-dated by transform_tolerance so Nav2 lookups never extrapolate
+    between registration updates (same trick AMCL uses)
 
 No TF is published before the first /initialpose: with map->odom missing,
 Nav2 costmaps stay inactive, which is exactly the safe behavior we want.
@@ -224,27 +223,25 @@ class LocalizerNode(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=1,
         )
-        # Registration is driven by cloud arrival, throttled in WALL time:
-        # a sim-time timer stalls whenever /clock runs slower than wall time,
-        # and on the robot the cloud rate is the natural cadence anyway. The
-        # mutually-exclusive group keeps the heavy GICP work off the TF timer.
-        registration_rate = max(
-            float(self.get_parameter("registration_rate_hz").value), 0.1
-        )
-        self._registration_min_period = 1.0 / registration_rate
-        self._last_registration_wall = float("-inf")
         self._cloud_sub = self.create_subscription(
             PointCloud2,
             str(self.get_parameter("input_cloud_topic").value),
             self._on_cloud,
             sensor_qos,
-            callback_group=MutuallyExclusiveCallbackGroup(),
         )
         self._initialpose_sub = self.create_subscription(
             PoseWithCovarianceStamped, "/initialpose", self._on_initialpose, 10
         )
 
+        registration_rate = max(
+            float(self.get_parameter("registration_rate_hz").value), 0.1
+        )
         tf_rate = max(float(self.get_parameter("tf_publish_rate_hz").value), 1.0)
+        self._registration_timer = self.create_timer(
+            1.0 / registration_rate,
+            self._on_registration_timer,
+            callback_group=MutuallyExclusiveCallbackGroup(),
+        )
         self._tf_timer = self.create_timer(
             1.0 / tf_rate,
             self._on_tf_timer,
@@ -262,11 +259,6 @@ class LocalizerNode(Node):
         with self._lock:
             self._latest_cloud = msg
             self._cloud_is_new = True
-        now = time.monotonic()
-        if now - self._last_registration_wall < self._registration_min_period:
-            return
-        self._last_registration_wall = now
-        self._run_registration()
 
     def _on_initialpose(self, msg: PoseWithCovarianceStamped) -> None:
         if msg.header.frame_id and msg.header.frame_id != self._map_frame:
@@ -316,7 +308,7 @@ class LocalizerNode(Node):
         stamped.transform.rotation.w = qw
         self._tf_broadcaster.sendTransform(stamped)
 
-    def _run_registration(self) -> None:
+    def _on_registration_timer(self) -> None:
         with self._lock:
             if self._machine.state == LocalizerState.UNINITIALIZED:
                 return

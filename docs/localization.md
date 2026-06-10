@@ -58,8 +58,8 @@ z translation is kept since it corrects genuine odometry z drift.
 
 ## TF timing
 
-Registration runs on each new cloud, throttled to `registration_rate_hz`
-(2.0) in wall time, in its own callback group; a separate 50 Hz timer re-broadcasts the latest `T_map_odom` future-dated by
+Registration runs at `registration_rate_hz` (2.0) in its own callback group;
+a separate 50 Hz timer re-broadcasts the latest `T_map_odom` future-dated by
 `transform_tolerance` (0.3 s) — the same trick AMCL uses — so Nav2 TF
 lookups never extrapolate between registration updates.
 

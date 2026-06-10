@@ -111,10 +111,10 @@ ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
     '{header: {frame_id: map}, pose: {pose: {position: {x: 0.0, y: 0.0}, orientation: {w: 1.0}}}}' \
     > "$LOG_DIR/initialpose.log" 2>&1
 
-echo "[smoke] Waiting for localization TRACKING (up to ~3min; sim time runs slower than wall time)..."
+echo "[smoke] Waiting for localization TRACKING (up to 30s)..."
 TRACKING_OK=false
-for _ in $(seq 1 24); do
-    STATE=$(timeout 6 ros2 topic echo --once --qos-durability transient_local --qos-reliability reliable /localization/state 2>/dev/null | grep -oP "data: '?\K[A-Z]+" || true)
+for _ in $(seq 1 30); do
+    STATE=$(timeout 2 ros2 topic echo --once --qos-durability transient_local --qos-reliability reliable /localization/state 2>/dev/null | grep -oP "data: '\K[A-Z]+" || true)
     if [ "$STATE" = "TRACKING" ]; then
         echo "[smoke] localization TRACKING"
         TRACKING_OK=true
@@ -142,8 +142,8 @@ ros2 topic pub --once /goal_pose geometry_msgs/msg/PoseStamped \
 
 echo "[smoke] Waiting for /cmd_vel (up to 60s)..."
 CMD_OK=false
-for _ in $(seq 1 10); do
-    if timeout 6 ros2 topic echo --once /cmd_vel >/dev/null 2>&1; then
+for _ in $(seq 1 60); do
+    if timeout 1 ros2 topic echo --once /cmd_vel >/dev/null 2>&1; then
         echo "[smoke] saw /cmd_vel"
         CMD_OK=true
         break
