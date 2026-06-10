@@ -17,6 +17,7 @@ which is the recommended way to bring the stack up before enabling motion.
 """
 from __future__ import annotations
 
+import math
 import threading
 
 import rclpy
@@ -81,9 +82,20 @@ class VelocityBridgeNode(Node):
         return self._dry_run
 
     def _on_cmd_vel(self, msg: Twist) -> None:
+        components = (
+            msg.linear.x, msg.linear.y, msg.linear.z,
+            msg.angular.x, msg.angular.y, msg.angular.z,
+        )
+        valid = all(math.isfinite(component) for component in components)
         with self._lock:
-            self._last_twist = msg
-            self._last_stamp_ns = self.get_clock().now().nanoseconds
+            if valid:
+                self._last_twist = msg
+                self._last_stamp_ns = self.get_clock().now().nanoseconds
+            else:
+                self._last_twist = None
+                self._last_stamp_ns = 0
+        if not valid:
+            self.get_logger().error("Rejecting non-finite /cmd_vel; entering idle state.")
 
     def _on_timer(self) -> None:
         now_ns = self.get_clock().now().nanoseconds

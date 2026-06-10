@@ -64,3 +64,17 @@ def test_remove_sparse_voxels_keeps_dense_cloud_intact():
     cloud = rng.uniform(0.0, 0.5, size=(300, 3)).astype(np.float32)
     out = remove_sparse_voxels(cloud, voxel_size=0.5, min_neighborhood_points=4)
     assert len(out) == 300
+
+
+def test_remove_sparse_voxels_counts_mixed_sign_axis_neighbor():
+    cloud = np.array(
+        [
+            [0.1, 0.1, 0.1],
+            [1.1, -0.9, 0.1],
+            [1.2, -0.8, 0.2],
+            [1.3, -0.7, 0.3],
+        ],
+        dtype=np.float32,
+    )
+    out = remove_sparse_voxels(cloud, voxel_size=1.0, min_neighborhood_points=4)
+    np.testing.assert_array_equal(out, cloud)

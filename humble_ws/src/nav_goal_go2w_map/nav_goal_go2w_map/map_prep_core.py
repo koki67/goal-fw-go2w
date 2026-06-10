@@ -80,7 +80,7 @@ def remove_sparse_voxels(
     for dx in (-1, 0, 1):
         for dy in (-1, 0, 1):
             for dz in (-1, 0, 1):
-                offset = (dx << (2 * _AXIS_BITS)) | (dy << _AXIS_BITS) | dz
+                offset = (dx << (2 * _AXIS_BITS)) + (dy << _AXIS_BITS) + dz
                 neighbor_keys = unique_keys + offset
                 pos = np.searchsorted(unique_keys, neighbor_keys)
                 pos = np.clip(pos, 0, len(unique_keys) - 1)

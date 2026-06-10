@@ -24,6 +24,10 @@ class TestClamp:
     def test_negative_cap_forces_zero(self):
         assert clamp(0.5, -0.1) == 0.0
 
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+    def test_non_finite_value_forces_zero(self, value):
+        assert clamp(value, 0.5) == 0.0
+
 
 class TestClampTwist:
     def test_each_axis_clipped_independently(self):
@@ -35,6 +39,10 @@ class TestClampTwist:
     def test_in_range_passthrough(self):
         vx, vy, wz = clamp_twist(0.10, -0.05, 0.20, 0.30, 0.20, 0.50)
         assert (vx, vy, wz) == pytest.approx((0.10, -0.05, 0.20))
+
+    def test_any_non_finite_component_forces_zero_twist(self):
+        result = clamp_twist(0.10, float("nan"), 0.20, 0.30, 0.20, 0.50)
+        assert result == (0.0, 0.0, 0.0)
 
 
 class TestEncodeMoveParameter:
@@ -55,3 +63,7 @@ class TestEncodeMoveParameter:
     def test_zero_message_is_compact(self):
         # Zero-Move is sent every tick during idle; smaller is better for the wire.
         assert encode_move_parameter(0.0, 0.0, 0.0) == '{"x": 0.0, "y": 0.0, "z": 0.0}'
+
+    def test_rejects_non_finite_json_values(self):
+        with pytest.raises(ValueError):
+            encode_move_parameter(float("nan"), 0.0, 0.0)

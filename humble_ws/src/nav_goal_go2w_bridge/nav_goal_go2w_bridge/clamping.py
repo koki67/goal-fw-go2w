@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Tuple
 
 
 def clamp(value: float, cap: float) -> float:
-    """Clamp a scalar to [-cap, +cap]. A non-positive cap forces zero."""
-    if cap <= 0.0:
+    """Clamp a scalar to [-cap, +cap]. Invalid inputs force zero."""
+    if not math.isfinite(value) or not math.isfinite(cap) or cap <= 0.0:
         return 0.0
     if value > cap:
         return cap
@@ -25,6 +26,9 @@ def clamp_twist(
     wz_max: float,
 ) -> Tuple[float, float, float]:
     """Clamp the three Sport-API velocity components to their per-axis caps."""
+    values = (vx, vy, wz, vx_max, vy_max, wz_max)
+    if not all(math.isfinite(value) for value in values):
+        return 0.0, 0.0, 0.0
     return clamp(vx, vx_max), clamp(vy, vy_max), clamp(wz, wz_max)
 
 
@@ -38,4 +42,4 @@ def encode_move_parameter(vx: float, vy: float, wz: float, decimals: int = 4) ->
         "x": round(vx, decimals),
         "y": round(vy, decimals),
         "z": round(wz, decimals),
-    })
+    }, allow_nan=False)
