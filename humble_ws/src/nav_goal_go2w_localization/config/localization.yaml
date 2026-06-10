@@ -6,7 +6,7 @@ scan_to_map_localizer:
     odom_frame: odom
     base_frame: base_link
 
-    registration_rate_hz: 2.0         # heavy GICP work; map->odom drifts slowly
+    registration_rate_hz: 2.0         # max rate, wall clock; effective rate = min(cloud rate, this)
     tf_publish_rate_hz: 50.0
     transform_tolerance: 0.3          # future-date TF so Nav2 never extrapolates
 
