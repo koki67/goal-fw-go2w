@@ -1,0 +1,35 @@
+scan_to_map_localizer:
+  ros__parameters:
+    map_path: ""                      # set by launch: <map_dir>/map.pcd
+    input_cloud_topic: /dlio/odom_node/pointcloud/deskewed
+    map_frame: map
+    odom_frame: odom
+    base_frame: base_link
+
+    registration_rate_hz: 2.0         # heavy GICP work; map->odom drifts slowly
+    tf_publish_rate_hz: 50.0
+    transform_tolerance: 0.3          # future-date TF so Nav2 never extrapolates
+
+    registration_type: GICP           # GICP | VGICP (VGICP is cheaper per query)
+    num_threads: 4
+    map_voxel_size: 0.20              # re-downsample of map.pcd at load
+    scan_voxel_size: 0.25
+    min_range: 0.5
+    max_range: 30.0
+    max_correspondence_distance: 1.0
+    converging_max_correspondence_distance: 2.0  # absorbs coarse RViz clicks
+
+    # Gating: registrations failing these never move map->odom.
+    min_points: 200
+    min_inlier_fraction: 0.6
+    max_mean_error: 0.10              # GICP residual per inlier; tune on robot
+    max_translation_jump_m: 0.5
+    max_rotation_jump_deg: 10.0
+    jump_confirm_count: 3             # persistent jumps = genuine odom slip
+    correction_blend: 1.0             # 1.0 = replace; <1 damps jitter
+    constrain_2d: true                # flatten map->odom to yaw-only
+
+    # State machine thresholds.
+    converge_good_count: 3
+    degraded_after_rejects: 4
+    lost_after_rejects: 12

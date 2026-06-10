@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>nav_goal_go2w_localization</name>
+  <version>0.1.0</version>
+  <description>
+    Scan-to-map localization against a pre-built PCD map. Registers live
+    (deskewed, odom-frame) LiDAR clouds with small_gicp GICP/VGICP seeded by
+    D-LIO odometry, gates the result (inliers, residual, jump consistency),
+    and broadcasts the map->odom TF. Health state machine:
+    UNINITIALIZED/CONVERGING/TRACKING/DEGRADED/LOST on /localization/state.
+  </description>
+
+  <maintainer email="67k.tanaka@gmail.com">Koki Tanaka</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>tf2_ros_py</depend>
+  <depend>nav_goal_go2w_map</depend>
+  <depend>python3-numpy</depend>
+  <!-- small_gicp is a pip dependency (no rosdep key); installed in the Docker image. -->
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
