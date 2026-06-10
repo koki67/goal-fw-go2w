@@ -249,6 +249,12 @@ class LocalizationStateMachine:
             return self._reject(reason)
         return self._accept(outcome)
 
+    def reject(self, reason: str) -> UpdateResult:
+        """Record a failed registration attempt that produced no outcome."""
+        if self.state == LocalizerState.UNINITIALIZED or self.T_map_odom is None:
+            return UpdateResult(False, "uninitialized", self.state)
+        return self._reject(reason)
+
     # -- internals ---------------------------------------------------------
 
     def _quality_gate(self, outcome: RegistrationOutcome) -> str | None:

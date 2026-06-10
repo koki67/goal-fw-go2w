@@ -133,6 +133,32 @@ def test_tracking_degrades_then_loses_on_rejects():
     assert machine.state == LocalizerState.TRACKING
 
 
+def test_registration_errors_degrade_then_lose_tracking():
+    machine = _initialized_machine(
+        converge_good_count=1, degraded_after_rejects=2, lost_after_rejects=3
+    )
+    T = machine.T_map_odom.copy()
+    machine.update(_good(T))
+
+    result = machine.reject("registration_error(RuntimeError)")
+    assert not result.accepted
+    assert result.reason == "registration_error(RuntimeError)"
+    assert machine.state == LocalizerState.TRACKING
+
+    machine.reject("registration_error(RuntimeError)")
+    assert machine.state == LocalizerState.DEGRADED
+    machine.reject("registration_error(RuntimeError)")
+    assert machine.state == LocalizerState.LOST
+    np.testing.assert_allclose(machine.T_map_odom, T)
+
+
+def test_uninitialized_ignores_registration_errors():
+    machine = LocalizationStateMachine()
+    result = machine.reject("registration_error(RuntimeError)")
+    assert result.reason == "uninitialized"
+    assert machine.state == LocalizerState.UNINITIALIZED
+
+
 def test_rejected_outcome_does_not_move_transform():
     machine = _initialized_machine(converge_good_count=1)
     T = machine.T_map_odom.copy()
