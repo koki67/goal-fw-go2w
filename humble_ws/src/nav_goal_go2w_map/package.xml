@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>nav_goal_go2w_map</name>
+  <version>0.1.0</version>
+  <description>
+    Pre-built map tooling for the Go2W goal navigation stack: offline
+    prepare_map CLI (PCD to localization map + RViz cloud + Nav2 occupancy
+    grid), and runtime serving (nav2_map_server lifecycle wrapper plus a
+    latched /map_cloud PointCloud2 publisher).
+  </description>
+
+  <maintainer email="67k.tanaka@gmail.com">Koki Tanaka</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>sensor_msgs_py</depend>
+  <depend>std_msgs</depend>
+  <depend>python3-numpy</depend>
+  <depend>python3-yaml</depend>
+
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
