@@ -124,16 +124,18 @@ class GoalPolicy:
         return Decision(Action.DISPATCH, next_goal, "dispatch_pending")
 
     def complete_active(self, outcome: Outcome) -> Decision:
-        """Clear the active goal after Nav2 reports a result."""
+        """Clear the active goal after Nav2 reports a result.
+
+        Pending goals stay queued so the executor can recheck its dispatch
+        gates before promoting them on the next timer tick.
+        """
         if self.active is None:
             return Decision(Action.NONE, reason="no_active")
         self.active = None
-        if self.pending is not None:
-            next_goal = self.pending
-            self.pending = None
-            self.active = next_goal
-            return Decision(Action.DISPATCH, next_goal, "dispatch_pending")
-        return Decision(Action.NONE, reason="idle")
+        return Decision(
+            Action.NONE,
+            reason="pending_waiting" if self.pending is not None else "idle",
+        )
 
     def _is_duplicate(self, candidate: GoalPose, existing: Optional[GoalPose]) -> bool:
         if existing is None:

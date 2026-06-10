@@ -75,15 +75,15 @@ class TestGoalPolicy:
         assert d.action == Action.QUEUE
         assert p.pending == _g(10, 10)
 
-    def test_completion_drains_pending(self):
+    def test_completion_leaves_pending_queued(self):
         p = GoalPolicy(min_update_distance=0.5)
         p.offer(_g(0, 0), can_dispatch=True)
         p.offer(_g(5, 5), can_dispatch=True)  # queued
         d = p.complete_active(Outcome.SUCCEEDED)
-        assert d.action == Action.DISPATCH
-        assert d.goal == _g(5, 5)
-        assert p.has_active()
-        assert p.pending is None
+        assert d.action == Action.NONE
+        assert d.reason == "pending_waiting"
+        assert not p.has_active()
+        assert p.pending == _g(5, 5)
 
     def test_completion_idle_when_nothing_pending(self):
         p = GoalPolicy(min_update_distance=0.5)
@@ -148,12 +148,23 @@ class TestGoalPolicy:
         assert d.action == Action.PREEMPT
         assert p.pending == _g(10, 10)
 
-    def test_preempt_strategy_completion_dispatches_pending(self):
+    def test_preempt_strategy_completion_leaves_pending_for_gate_recheck(self):
         p = GoalPolicy(min_update_distance=0.5, update_strategy="preempt")
         p.offer(_g(0, 0), can_dispatch=True)
         p.offer(_g(5, 5), can_dispatch=True)
         d = p.complete_active(Outcome.CANCELED)
-        assert d.action == Action.DISPATCH
-        assert d.goal == _g(5, 5)
+        assert d.action == Action.NONE
+        assert d.reason == "pending_waiting"
+        assert p.active is None
+        assert p.pending == _g(5, 5)
+
+        blocked = p.maybe_dispatch_pending(can_dispatch=False)
+        assert blocked.action == Action.NONE
+        assert p.active is None
+        assert p.pending == _g(5, 5)
+
+        ready = p.maybe_dispatch_pending(can_dispatch=True)
+        assert ready.action == Action.DISPATCH
+        assert ready.goal == _g(5, 5)
         assert p.active == _g(5, 5)
         assert p.pending is None
