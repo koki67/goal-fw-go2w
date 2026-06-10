@@ -1,0 +1,37 @@
+{
+  "name": "goal-fw-go2w macOS sim (Humble)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "../.."
+  },
+  "workspaceFolder": "/workspaces/goal-fw-go2w",
+  "remoteUser": "root",
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": {
+      "label": "RViz (noVNC)",
+      "onAutoForward": "openBrowserOnce"
+    }
+  },
+  "postStartCommand": ".devcontainer/macos/start_gui.sh",
+  "postCreateCommand": "bash -c 'source /opt/ros/humble/setup.bash && rosdep update --rosdistro humble && apt-get update -q && rosdep install --from-paths humble_ws/src --ignore-src -r -y --rosdistro humble && rm -rf /var/lib/apt/lists/* && printf \"\\n[goal-fw-go2w] macOS simulator devcontainer ready.\\nOpen http://localhost:6080/vnc.html on the Mac to view RViz.\\n\\n\"'",
+  "containerEnv": {
+    "DISPLAY": ":1",
+    "LIBGL_ALWAYS_SOFTWARE": "1",
+    "QT_QUICK_BACKEND": "software",
+    "QT_X11_NO_MITSHM": "1",
+    "RMW_IMPLEMENTATION": "rmw_cyclonedds_cpp",
+    "ROS_DOMAIN_ID": "0",
+    "ROS_LOCALHOST_ONLY": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+      },
+      "extensions": [
+        "ms-iot.vscode-ros"
+      ]
+    }
+  }
+}

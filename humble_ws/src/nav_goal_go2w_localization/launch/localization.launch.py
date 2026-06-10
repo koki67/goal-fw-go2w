@@ -12,6 +12,7 @@ def _setup(context, *args, **kwargs):
     map_dir = LaunchConfiguration("map").perform(context)
     params_file = LaunchConfiguration("localization_params_file").perform(context)
     use_sim_time = LaunchConfiguration("use_sim_time").perform(context) == "true"
+    registration_rate = LaunchConfiguration("registration_rate_hz").perform(context)
 
     map_pcd = os.path.join(map_dir, "map.pcd")
     if not os.path.isfile(map_pcd):
@@ -20,16 +21,17 @@ def _setup(context, *args, **kwargs):
             "run `ros2 run nav_goal_go2w_map prepare_map` first"
         )
 
+    overrides = {"use_sim_time": use_sim_time, "map_path": map_pcd}
+    if registration_rate.strip():
+        overrides["registration_rate_hz"] = float(registration_rate)
+
     return [
         Node(
             package="nav_goal_go2w_localization",
             executable="scan_to_map_localizer",
             name="scan_to_map_localizer",
             output="screen",
-            parameters=[
-                params_file,
-                {"use_sim_time": use_sim_time, "map_path": map_pcd},
-            ],
+            parameters=[params_file, overrides],
         )
     ]
 
@@ -49,6 +51,11 @@ def generate_launch_description() -> LaunchDescription:
                 "localization_params_file", default_value=default_params
             ),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
+            DeclareLaunchArgument(
+                "registration_rate_hz",
+                default_value="",
+                description="Override the params-file registration rate [Hz].",
+            ),
             OpaqueFunction(function=_setup),
         ]
     )
