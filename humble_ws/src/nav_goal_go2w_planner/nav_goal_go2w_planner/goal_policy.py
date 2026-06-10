@@ -52,6 +52,12 @@ def planar_distance(a: GoalPose, b: GoalPose) -> float:
     return math.hypot(a.x - b.x, a.y - b.y)
 
 
+def yaw_distance(a: GoalPose, b: GoalPose) -> float:
+    a_yaw = 2.0 * math.atan2(a.qz, a.qw)
+    b_yaw = 2.0 * math.atan2(b.qz, b.qw)
+    return abs(math.atan2(math.sin(a_yaw - b_yaw), math.cos(a_yaw - b_yaw)))
+
+
 def frames_match(a: str, b: str) -> bool:
     return a.strip() == b.strip()
 
@@ -85,8 +91,10 @@ class GoalPolicy:
         self,
         min_update_distance: float,
         update_strategy: str | GoalUpdateStrategy = GoalUpdateStrategy.QUEUE,
+        min_update_yaw: float = math.radians(5.0),
     ) -> None:
         self.min_update_distance = max(0.0, min_update_distance)
+        self.min_update_yaw = max(0.0, min_update_yaw)
         self.update_strategy = parse_goal_update_strategy(update_strategy)
         self.active: Optional[GoalPose] = None
         self.pending: Optional[GoalPose] = None
@@ -142,4 +150,7 @@ class GoalPolicy:
             return False
         if not frames_match(candidate.frame_id, existing.frame_id):
             return False
-        return planar_distance(candidate, existing) < self.min_update_distance
+        return (
+            planar_distance(candidate, existing) < self.min_update_distance
+            and yaw_distance(candidate, existing) < self.min_update_yaw
+        )

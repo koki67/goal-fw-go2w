@@ -57,6 +57,7 @@ class GoalPoseExecutorNode(Node):
         self.declare_parameter("global_frame", "map")
         self.declare_parameter("robot_base_frame", "base_link")
         self.declare_parameter("min_goal_update_distance", 0.1)
+        self.declare_parameter("min_goal_update_yaw", math.radians(5.0))
         self.declare_parameter("goal_update_strategy", "preempt")
         self.declare_parameter("goal_timeout_sec", 300.0)
         self.declare_parameter("result_check_rate", 2.0)
@@ -77,6 +78,9 @@ class GoalPoseExecutorNode(Node):
         self._global_frame = self.get_parameter("global_frame").value
         self._robot_base_frame = self.get_parameter("robot_base_frame").value
         self._min_update = max(0.0, float(self.get_parameter("min_goal_update_distance").value))
+        self._min_update_yaw = max(
+            0.0, float(self.get_parameter("min_goal_update_yaw").value)
+        )
         self._goal_update_strategy = str(self.get_parameter("goal_update_strategy").value)
         self._goal_timeout = max(0.0, float(self.get_parameter("goal_timeout_sec").value))
         result_rate = max(0.5, float(self.get_parameter("result_check_rate").value))
@@ -106,6 +110,7 @@ class GoalPoseExecutorNode(Node):
 
         self._policy = GoalPolicy(
             min_update_distance=self._min_update,
+            min_update_yaw=self._min_update_yaw,
             update_strategy=self._goal_update_strategy,
         )
         self._throttle: dict[str, float] = {}

@@ -4,6 +4,7 @@ goal_pose_executor:
     global_frame: map
     robot_base_frame: base_link
     min_goal_update_distance: 0.1        # operator clicks are intentional
+    min_goal_update_yaw: 0.0872665       # 5 degrees; orientation-only updates pass
     goal_update_strategy: preempt        # new click wins immediately
     goal_timeout_sec: 300.0
     result_check_rate: 2.0

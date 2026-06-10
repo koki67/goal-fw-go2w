@@ -255,6 +255,7 @@ def generate_launch_description():
         executable="imu_publisher",
         name="go2w_imu_publisher",
         output="screen",
+        parameters=[{"use_sim_time": use_sim_time}],
     )
 
     # ---- 5. D-LIO --------------------------------------------------------------

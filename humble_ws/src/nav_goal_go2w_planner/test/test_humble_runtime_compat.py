@@ -38,3 +38,12 @@ def test_rclpy_logger_calls_are_humble_compatible():
             offenders.append(f"{path.relative_to(SRC_ROOT)}:{node.lineno}")
 
     assert offenders == []
+
+
+def test_imu_publisher_receives_use_sim_time():
+    launch_file = (
+        SRC_ROOT / "nav_goal_go2w_bringup" / "launch" / "bringup.launch.py"
+    )
+    source = launch_file.read_text(encoding="utf-8")
+    imu_node = source[source.index("imu_node = Node("):source.index("# ---- 5. D-LIO")]
+    assert "parameters=[{\"use_sim_time\": use_sim_time}]" in imu_node
