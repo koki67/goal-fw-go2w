@@ -375,9 +375,9 @@ class LocalizerNode(Node):
         if frame == self._odom_frame:
             return points
         # Fallback path for clouds not already in odom (e.g. /points_raw).
-        T_odom_cloud = self._lookup_matrix(
-            self._odom_frame, frame, Time.from_msg(msg.header.stamp)
-        ) or self._lookup_matrix(self._odom_frame, frame)
+        T_odom_cloud = self._lookup_matrix_stamped_or_latest(
+            self._odom_frame, frame, msg.header.stamp
+        )
         if T_odom_cloud is None:
             self.get_logger().warn(
                 f"no TF {self._odom_frame} <- {frame}; dropping cloud",
@@ -388,12 +388,24 @@ class LocalizerNode(Node):
         return rotated + T_odom_cloud[:3, 3].astype(np.float32)
 
     def _registration_center(self, msg: PointCloud2, points: np.ndarray) -> np.ndarray:
-        T_odom_base = self._lookup_matrix(
-            self._odom_frame, self._base_frame, Time.from_msg(msg.header.stamp)
-        ) or self._lookup_matrix(self._odom_frame, self._base_frame)
+        T_odom_base = self._lookup_matrix_stamped_or_latest(
+            self._odom_frame, self._base_frame, msg.header.stamp
+        )
         if T_odom_base is not None:
             return T_odom_base[:3, 3]
         return points.mean(axis=0) if len(points) else np.zeros(3)
+
+    def _lookup_matrix_stamped_or_latest(
+        self, target: str, source: str, stamp
+    ) -> np.ndarray | None:
+        """TF at the message stamp, falling back to latest.
+
+        Explicit None checks: numpy arrays cannot be chained with `or`.
+        """
+        matrix = self._lookup_matrix(target, source, Time.from_msg(stamp))
+        if matrix is not None:
+            return matrix
+        return self._lookup_matrix(target, source)
 
     def _lookup_matrix(
         self, target: str, source: str, when: Time | None = None
@@ -415,9 +427,9 @@ class LocalizerNode(Node):
     def _publish_pose(
         self, cloud_msg: PointCloud2, T_map_odom: np.ndarray, mean_error: float
     ) -> None:
-        T_odom_base = self._lookup_matrix(
-            self._odom_frame, self._base_frame, Time.from_msg(cloud_msg.header.stamp)
-        ) or self._lookup_matrix(self._odom_frame, self._base_frame)
+        T_odom_base = self._lookup_matrix_stamped_or_latest(
+            self._odom_frame, self._base_frame, cloud_msg.header.stamp
+        )
         if T_odom_base is None:
             return
         T_map_base = T_map_odom @ T_odom_base

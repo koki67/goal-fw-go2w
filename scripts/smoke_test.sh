@@ -56,7 +56,7 @@ if [ ! -f "$MAP_DIR/grid.yaml" ]; then
     exit 1
 fi
 
-LOG_DIR=/tmp/nav_goal_smoke_$$
+LOG_DIR="${SMOKE_LOG_DIR:-/tmp/nav_goal_smoke_$$}"
 mkdir -p "$LOG_DIR"
 BAG_PID=""
 
@@ -85,8 +85,14 @@ cleanup() {
     echo "[smoke] cleaning up..."
     kill -INT "$BRINGUP_PID" 2>/dev/null || true
     [ -n "$BAG_PID" ] && kill -INT "$BAG_PID" 2>/dev/null || true
-    wait "$BRINGUP_PID" 2>/dev/null || true
-    [ -n "$BAG_PID" ] && wait "$BAG_PID" 2>/dev/null || true
+    for _ in $(seq 1 10); do
+        kill -0 "$BRINGUP_PID" 2>/dev/null || break
+        sleep 1
+    done
+    # SIGINT laggards must not keep the container (and its DDS graph) alive.
+    kill -KILL "$BRINGUP_PID" 2>/dev/null || true
+    [ -n "$BAG_PID" ] && kill -KILL "$BAG_PID" 2>/dev/null || true
+    pkill -KILL -f "ros2 launch" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
@@ -108,7 +114,7 @@ ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
 echo "[smoke] Waiting for localization TRACKING (up to 30s)..."
 TRACKING_OK=false
 for _ in $(seq 1 30); do
-    STATE=$(timeout 2 ros2 topic echo --once /localization/state 2>/dev/null | grep -oP "data: '\K[A-Z]+" || true)
+    STATE=$(timeout 2 ros2 topic echo --once --qos-durability transient_local --qos-reliability reliable /localization/state 2>/dev/null | grep -oP "data: '\K[A-Z]+" || true)
     if [ "$STATE" = "TRACKING" ]; then
         echo "[smoke] localization TRACKING"
         TRACKING_OK=true
