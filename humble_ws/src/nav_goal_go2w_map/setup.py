@@ -23,6 +23,7 @@ setup(
     entry_points={
         "console_scripts": [
             "prepare_map = nav_goal_go2w_map.prepare_map_cli:main",
+            "finish_map = nav_goal_go2w_map.finish_map_cli:main",
             "map_cloud_publisher = nav_goal_go2w_map.map_cloud_publisher_node:main",
         ],
     },
