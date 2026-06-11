@@ -178,6 +178,25 @@ def test_quality_gates():
     assert "high_error" in machine.update(high_error).reason
 
 
+def test_non_finite_outcomes_are_rejected_without_moving_transform():
+    machine = _initialized_machine(converge_good_count=1)
+    T = machine.T_map_odom.copy()
+
+    invalid_transform = T.copy()
+    invalid_transform[0, 3] = np.nan
+    outcomes = [
+        RegistrationOutcome(invalid_transform, True, 900, 1000, 10.0),
+        RegistrationOutcome(T, True, 900, 1000, float("nan")),
+        RegistrationOutcome(T, True, 900, 1000, float("inf")),
+    ]
+
+    for outcome in outcomes:
+        result = machine.update(outcome)
+        assert not result.accepted
+        assert result.reason == "non_finite_result"
+        np.testing.assert_allclose(machine.T_map_odom, T)
+
+
 def test_single_jump_rejected_persistent_jump_accepted():
     machine = _initialized_machine(converge_good_count=1, jump_confirm_count=3)
     T = machine.T_map_odom.copy()

@@ -258,6 +258,12 @@ class LocalizationStateMachine:
     # -- internals ---------------------------------------------------------
 
     def _quality_gate(self, outcome: RegistrationOutcome) -> str | None:
+        if (
+            not np.isfinite(outcome.T_map_odom).all()
+            or not math.isfinite(outcome.inlier_fraction)
+            or not math.isfinite(outcome.mean_error)
+        ):
+            return "non_finite_result"
         if outcome.source_size < self.config.min_points:
             return f"too_few_points({outcome.source_size})"
         if not outcome.converged:

@@ -61,3 +61,12 @@ def test_desktop_devcontainers_install_manual_python_dependencies():
             dependency for dependency in required if dependency not in source
         )
         assert missing == [], f"{relative_path} missing: {missing}"
+
+
+def test_hesai_static_library_is_position_independent():
+    cmake_file = SRC_ROOT / "hesai_lidar" / "CMakeLists.txt"
+    source = cmake_file.read_text(encoding="utf-8")
+    assert (
+        "set_target_properties(PandarGeneral PROPERTIES "
+        "POSITION_INDEPENDENT_CODE TRUE)"
+    ) in source

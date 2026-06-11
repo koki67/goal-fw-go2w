@@ -43,6 +43,20 @@ def test_clamp_twist_limits_each_axis():
     assert twist == Twist2D(0.3, -0.2, 0.5)
 
 
+@pytest.mark.parametrize(
+    "twist",
+    [
+        Twist2D(float("nan"), 0.0, 0.0),
+        Twist2D(0.0, float("inf"), 0.0),
+        Twist2D(0.0, 0.0, float("-inf")),
+    ],
+)
+def test_clamp_twist_stops_on_non_finite_input(twist):
+    assert clamp_twist(twist, vx_max=0.3, vy_max=0.2, wz_max=0.5) == Twist2D(
+        0.0, 0.0, 0.0
+    )
+
+
 def test_collision_checks_robot_footprint():
     world = _empty_world()
     world.grid[4, 4] = OCCUPIED
