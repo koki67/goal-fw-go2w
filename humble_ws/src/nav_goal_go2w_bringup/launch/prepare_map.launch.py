@@ -18,6 +18,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     use_rviz = LaunchConfiguration("use_rviz")
     dlio_output = LaunchConfiguration("dlio_output")
+    web_ui = LaunchConfiguration("web_ui")
 
     declared_args = [
         DeclareLaunchArgument(
@@ -35,6 +36,11 @@ def generate_launch_description():
             default_value="screen",
             description="D-LIO node output target: screen or log.",
         ),
+        DeclareLaunchArgument("web_ui", default_value="false"),
+        DeclareLaunchArgument("output", default_value=""),
+        DeclareLaunchArgument("save_leaf_size", default_value="0.05"),
+        DeclareLaunchArgument("web_ui_port", default_value="8080"),
+        DeclareLaunchArgument("rosbridge_port", default_value="9090"),
     ]
 
     hesai_include = IncludeLaunchDescription(
@@ -70,6 +76,16 @@ def generate_launch_description():
         }.items(),
     )
 
+    web_ui_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare("nav_goal_go2w_web"), "launch", "web_ui.launch.py"])),
+        condition=IfCondition(web_ui),
+        launch_arguments={"use_sim_time": use_sim_time, "prep_mode": "true",
+                          "prep_output": LaunchConfiguration("output"),
+                          "save_leaf_size": LaunchConfiguration("save_leaf_size"),
+                          "http_port": LaunchConfiguration("web_ui_port"),
+                          "rosbridge_port": LaunchConfiguration("rosbridge_port")}.items(),
+    )
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -91,5 +107,5 @@ def generate_launch_description():
     )
 
     return LaunchDescription(
-        [*declared_args, hesai_include, imu_node, dlio_include, rviz_node]
+        [*declared_args, hesai_include, imu_node, dlio_include, rviz_node, web_ui_include]
     )

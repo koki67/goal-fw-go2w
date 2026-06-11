@@ -9,6 +9,9 @@ OUTPUT=""
 USE_RVIZ="false"
 DLIO_OUTPUT="screen"
 SAVE_LEAF_SIZE="0.05"
+WEB_UI="false"
+WEB_UI_PORT="8080"
+ROSBRIDGE_PORT="9090"
 
 usage() {
     cat <<'USAGE'
@@ -26,6 +29,9 @@ Arguments:
   use_rviz:=false           launch D-LIO's live RViz mapping view
   dlio_output:=screen       D-LIO output target: screen or log
   save_leaf_size:=0.05      D-LIO save-time voxel leaf size in meters
+  web_ui:=false             start browser UI on ports 8080 and 9090
+  web_ui_port:=8080         browser HTTP port
+  rosbridge_port:=9090      rosbridge WebSocket port
 
 Prerequisite:
   The separately deployed go2w_teleop_gamepad system must already be running
@@ -113,6 +119,15 @@ for arg in "$@"; do
         save_leaf_size)
             SAVE_LEAF_SIZE="$value"
             ;;
+        web_ui)
+            WEB_UI="$value"
+            ;;
+        web_ui_port)
+            WEB_UI_PORT="$value"
+            ;;
+        rosbridge_port)
+            ROSBRIDGE_PORT="$value"
+            ;;
         *)
             echo "Unknown argument: $name" >&2
             usage >&2
@@ -140,6 +155,11 @@ fi
 if ! [[ "$SAVE_LEAF_SIZE" =~ ^[0-9]+([.][0-9]+)?$ ]] ||
     [[ "$SAVE_LEAF_SIZE" =~ ^0+([.]0+)?$ ]]; then
     echo "save_leaf_size:= must be a positive decimal number: $SAVE_LEAF_SIZE" >&2
+    exit 2
+fi
+
+if [ "$WEB_UI" != "true" ] && [ "$WEB_UI" != "false" ]; then
+    echo "web_ui:= must be true or false: $WEB_UI" >&2
     exit 2
 fi
 
@@ -188,6 +208,9 @@ COLLECT_CMD=(
     "use_rviz:=${USE_RVIZ}"
     "dlio_output:=${DLIO_OUTPUT}"
 )
+if [ "$WEB_UI" = "true" ]; then
+    COLLECT_CMD+=("web_ui:=true" "output:=$OUTPUT" "save_leaf_size:=$SAVE_LEAF_SIZE" "web_ui_port:=$WEB_UI_PORT" "rosbridge_port:=$ROSBRIDGE_PORT")
+fi
 FINISH_CMD=(
     bash /external/scripts/finish_prepare_map.sh
     --output "$OUTPUT"

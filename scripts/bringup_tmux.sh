@@ -11,6 +11,9 @@ VALID_ARGS=(
     map
     use_sim_time
     use_rviz
+    web_ui
+    web_ui_port
+    rosbridge_port
     bridge_dry_run
     vx_max
     vy_max
