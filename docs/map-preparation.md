@@ -1,6 +1,7 @@
 # Map preparation
 
-The stack consumes a **map directory** with five artifacts:
+The stack consumes a **map directory** with five required artifacts. The
+robot-driven workflow also retains its source cloud:
 
 ```
 maps/<name>/
@@ -8,21 +9,76 @@ maps/<name>/
 ├── viz.pcd        lightweight cloud for RViz (coarser voxels)
 ├── grid.pgm       2D occupancy grid image (nav2 map_server)
 ├── grid.yaml      map_server metadata (resolution, origin, thresholds)
-└── metadata.yaml  provenance + all parameters used
+├── metadata.yaml  provenance + all parameters used
+└── raw/
+    └── dlio_map.pcd  retained source cloud from robot-driven collection
 ```
 
-## Source A: frontier-fw-go2w exploration run
+## Robot-driven collection: Go2W + Hesai LiDAR
+
+This repository's integrated collection workflow is specifically for a
+Unitree Go2W equipped with the configured Hesai PandarXT-16 3D LiDAR. Robot
+motion is intentionally outside this framework: install and start
+[`go2w_teleop_gamepad`](https://github.com/koki67/go2w_teleop_gamepad) first.
+Its `/go2w_teleop_gamepad_node` must be visible on the same ROS domain.
+
+Inside the goal-fw-go2w container:
+
+```bash
+bash /external/scripts/prepare_map_tmux.sh output:=/external/maps/office
+```
+
+The helper fails closed when the teleop node is absent, when goal navigation
+is already active, or when Hesai/IMU/D-LIO collection nodes are already
+running. It also refuses to overwrite an existing output directory.
+
+The tmux session has two windows:
+
+- `collect`: Hesai driver + Go2W IMU publisher + D-LIO; no Nav2, localizer,
+  velocity bridge, or teleop node is launched by this repository
+- `finish`: waits for `/dlio_map_node/save_pcd`; drive the robot, then press
+  Enter here to save, stop collection, and run the existing `prepare_map` CLI
+
+Useful collection options:
+
+| Argument | Default | Meaning |
+|---|---|---|
+| `use_rviz:=true` | `false` | start D-LIO's live map/path RViz view |
+| `dlio_output:=log` | `screen` | send D-LIO output to ROS logs |
+| `save_leaf_size:=0.05` | `0.05` | D-LIO save-time voxel leaf size [m] |
+
+The finished directory is immediately usable with standard goal navigation:
+
+```bash
+# Stop the external teleop system before using bridge_dry_run:=false.
+bash /external/scripts/bringup_tmux.sh map:=/external/maps/office
+```
+
+Do not leave the external teleop publisher and the live goal-navigation
+velocity bridge active together; both publish `/api/sport/request`.
+
+To retune map conversion later without driving again, use the retained raw
+cloud and a new output directory:
+
+```bash
+ros2 run nav_goal_go2w_map prepare_map \
+    --input /external/maps/office/raw/dlio_map.pcd \
+    --output /external/maps/office-retuned \
+    --obstacle-z-min 0.20
+```
+
+## Alternative source A: frontier-fw-go2w exploration run
 
 While (or after) the frontier stack runs, save D-LIO's aggregated map:
 
 ```bash
-ros2 service call /dlio_map/save_pcd direct_lidar_inertial_odometry/srv/SavePCD \
+ros2 service call /dlio_map_node/save_pcd direct_lidar_inertial_odometry/srv/SavePCD \
     "{leaf_size: 0.05, save_path: '/external/maps'}"
 ```
 
-(check the exact service name with `ros2 service list | grep save_pcd`).
+(The service writes `dlio_map.pcd` inside `save_path`.)
 
-## Source B: handheld LiDAR walk
+## Alternative source B: handheld LiDAR walk
 
 Any odometry/mapping pipeline that outputs a registered point cloud works —
 carry the LiDAR through the environment, export a `.pcd` (pypcd4 reads

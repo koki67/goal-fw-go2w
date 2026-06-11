@@ -184,13 +184,10 @@ BRINGUP_CMD=(
     "${BRINGUP_ARGS[@]}"
 )
 
-HEALTH_CMD=(
-    ros2 topic echo /localization/state
-)
-
 DLIO_LAUNCH="$(shell_join "${DLIO_CMD[@]}")"
 BRINGUP_LAUNCH="$(shell_join "${BRINGUP_CMD[@]}")"
-HEALTH_LAUNCH="$(shell_join "${HEALTH_CMD[@]}")"
+# Poll until /localization/state is published (topic type unknown until bringup is ready)
+HEALTH_LAUNCH="until ros2 topic type /localization/state >/dev/null 2>&1; do sleep 1; done; ros2 topic echo /localization/state"
 DLIO_WINDOW_CMD="$(window_shell "$DLIO_LAUNCH")"
 BRINGUP_WINDOW_CMD="$(window_shell "$BRINGUP_LAUNCH")"
 HEALTH_WINDOW_CMD="$(window_shell "$HEALTH_LAUNCH")"

@@ -23,6 +23,7 @@ from nav_goal_go2w_map.map_prep_core import (
     voxel_downsample,
 )
 from nav_goal_go2w_map.pgm_yaml import write_map_files
+from nav_goal_go2w_map.provenance import metadata_source
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -105,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
 
     metadata = {
         "name": output_dir.name,
-        "source": str(Path(args.input).resolve()),
+        "source": metadata_source(args.input, output_dir),
         "created": datetime.datetime.now().astimezone().isoformat(),
         "raw_points": int(raw_count),
         "localization_points": int(len(loc_points)),
