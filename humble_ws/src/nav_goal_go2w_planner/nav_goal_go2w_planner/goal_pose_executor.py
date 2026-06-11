@@ -43,6 +43,7 @@ from nav_goal_go2w_planner.goal_policy import (
     should_cancel_for_timeout,
 )
 from nav_goal_go2w_planner.goal_validation import (
+    GoalValidationResult,
     Pose2D,
     ValidationGrid,
     validate_goal_reachable,
@@ -57,6 +58,7 @@ class GoalPoseExecutorNode(Node):
         self.declare_parameter("global_frame", "map")
         self.declare_parameter("robot_base_frame", "base_link")
         self.declare_parameter("min_goal_update_distance", 0.1)
+        self.declare_parameter("min_goal_update_yaw", math.radians(5.0))
         self.declare_parameter("goal_update_strategy", "preempt")
         self.declare_parameter("goal_timeout_sec", 300.0)
         self.declare_parameter("result_check_rate", 2.0)
@@ -77,6 +79,9 @@ class GoalPoseExecutorNode(Node):
         self._global_frame = self.get_parameter("global_frame").value
         self._robot_base_frame = self.get_parameter("robot_base_frame").value
         self._min_update = max(0.0, float(self.get_parameter("min_goal_update_distance").value))
+        self._min_update_yaw = max(
+            0.0, float(self.get_parameter("min_goal_update_yaw").value)
+        )
         self._goal_update_strategy = str(self.get_parameter("goal_update_strategy").value)
         self._goal_timeout = max(0.0, float(self.get_parameter("goal_timeout_sec").value))
         result_rate = max(0.5, float(self.get_parameter("result_check_rate").value))
@@ -106,6 +111,7 @@ class GoalPoseExecutorNode(Node):
 
         self._policy = GoalPolicy(
             min_update_distance=self._min_update,
+            min_update_yaw=self._min_update_yaw,
             update_strategy=self._goal_update_strategy,
         )
         self._throttle: dict[str, float] = {}
@@ -125,6 +131,9 @@ class GoalPoseExecutorNode(Node):
         self._last_result_text = "no goals yet"
         self._last_failed_goal: Optional[GoalPose] = None
         self._latest_validation_map: Optional[OccupancyGrid] = None
+        self._goal_validation_cache: dict[
+            tuple[str, float, float], GoalValidationResult
+        ] = {}
         self._validation_map_sub = None
         if self._goal_validation_map_topic:
             validation_qos = QoSProfile(depth=1)
@@ -180,6 +189,7 @@ class GoalPoseExecutorNode(Node):
 
     def _on_validation_map(self, msg: OccupancyGrid) -> None:
         self._latest_validation_map = msg
+        self._goal_validation_cache.clear()
 
     def _on_localization_state(self, msg: String) -> None:
         previous = self._localization_state
@@ -213,6 +223,20 @@ class GoalPoseExecutorNode(Node):
             qz=msg.pose.orientation.z,
             qw=msg.pose.orientation.w,
         )
+        validation = self._validate_goal(candidate)
+        if validation is not None and not validation.valid:
+            self.get_logger().warning(
+                "Rejecting goal x=%.2f y=%.2f on %s (%s)."
+                % (
+                    candidate.x,
+                    candidate.y,
+                    self._goal_validation_map_topic,
+                    validation.reason,
+                )
+            )
+            self._record_failure(candidate, "validation: %s" % validation.reason)
+            self._publish_status("REJECTED (validation: %s)" % validation.reason)
+            return
         decision = self._policy.offer(candidate, can_dispatch=self._can_dispatch())
         self._apply(decision)
 
@@ -333,17 +357,9 @@ class GoalPoseExecutorNode(Node):
             self._localization_cancel_requested = False
             self.get_logger().error("cancelTask() for localization raised: %s" % exc)
 
-    def _maybe_cancel_if_goal_invalid(self) -> None:
-        if (
-            not self._goal_validation_map_topic
-            or self._validation_cancel_requested
-            or self._timeout_requested
-            or self._preempt_requested
-        ):
-            return
-        active = self._policy.active
-        if active is None:
-            return
+    def _validate_goal(self, goal: GoalPose) -> Optional[GoalValidationResult]:
+        if not self._goal_validation_map_topic:
+            return None
         validation_map = self._latest_validation_map
         if validation_map is None:
             self._throttled(
@@ -351,16 +367,20 @@ class GoalPoseExecutorNode(Node):
                 "Waiting for goal validation map on %s." % self._goal_validation_map_topic,
                 5.0,
             )
-            return
+            return None
         map_frame = validation_map.header.frame_id.strip()
         if not frames_match(map_frame, self._global_frame):
             self._throttled(
                 "validation_frame_mismatch",
-                "Skipping goal validation map in frame '%s' (expected '%s')."
+                "Skipping goal validation map in frame %s (expected %s)."
                 % (map_frame or "<empty>", self._global_frame),
                 5.0,
             )
-            return
+            return None
+        cache_key = (goal.frame_id.strip(), goal.x, goal.y)
+        cached = self._goal_validation_cache.get(cache_key)
+        if cached is not None:
+            return cached
         try:
             transform = self._tf_buffer.lookup_transform(
                 self._global_frame,
@@ -375,7 +395,7 @@ class GoalPoseExecutorNode(Node):
                 % (self._global_frame, self._robot_base_frame, exc),
                 5.0,
             )
-            return
+            return None
 
         grid = self._validation_grid(validation_map)
         robot_pose = Pose2D(
@@ -387,16 +407,34 @@ class GoalPoseExecutorNode(Node):
                 validation_map.data,
                 grid,
                 robot_pose,
-                Pose2D(active.x, active.y),
+                Pose2D(goal.x, goal.y),
                 reachable_cost_threshold=self._goal_validation_reachable_cost_threshold,
                 seed_search_radius=self._goal_validation_seed_search_radius,
                 connectivity=self._goal_validation_connectivity,
                 treat_unknown_as_reachable=self._treat_unknown_as_reachable,
             )
         except ValueError as exc:
-            self._throttled("validation_grid_invalid", "Skipping goal validation: %s" % exc, 5.0)
+            self._throttled(
+                "validation_grid_invalid",
+                "Skipping goal validation: %s" % exc,
+                5.0,
+            )
+            return None
+        self._goal_validation_cache[cache_key] = result
+        return result
+
+    def _maybe_cancel_if_goal_invalid(self) -> None:
+        if (
+            self._validation_cancel_requested
+            or self._timeout_requested
+            or self._preempt_requested
+        ):
             return
-        if result.valid:
+        active = self._policy.active
+        if active is None:
+            return
+        result = self._validate_goal(active)
+        if result is None or result.valid:
             return
 
         self._validation_cancel_requested = True
@@ -441,7 +479,7 @@ class GoalPoseExecutorNode(Node):
                 result = self._navigator.getResult()
         except Exception as exc:
             self.get_logger().error("Nav2 result query failed: %s" % exc)
-            result = TaskResult.UNKNOWN
+            return
 
         active = self._policy.active
         was_timeout = self._timeout_requested

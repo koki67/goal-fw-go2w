@@ -139,6 +139,7 @@ class LocalizerNode(Node):
         self._converging_distance = float(
             self.get_parameter("converging_max_correspondence_distance").value
         )
+        self._min_points = int(self.get_parameter("min_points").value)
         self._transform_tolerance = float(
             self.get_parameter("transform_tolerance").value
         )
@@ -162,7 +163,7 @@ class LocalizerNode(Node):
 
         self._machine = LocalizationStateMachine(
             LocalizerConfig(
-                min_points=int(self.get_parameter("min_points").value),
+                min_points=self._min_points,
                 min_inlier_fraction=float(
                     self.get_parameter("min_inlier_fraction").value
                 ),
@@ -197,6 +198,7 @@ class LocalizerNode(Node):
         self._last_registration_ms = 0.0
         self._last_outcome_info: dict[str, str] = {}
         self._cycles_since_accept = 0
+        self._initial_pose_generation = 0
 
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
@@ -284,6 +286,7 @@ class LocalizerNode(Node):
         T_map_base = pose_msg_to_matrix(msg.pose.pose)
         with self._lock:
             self._machine.set_initial_pose(T_map_base, T_odom_base)
+            self._initial_pose_generation += 1
         self._publish_state()
         position = msg.pose.pose.position
         self.get_logger().info(
@@ -326,6 +329,7 @@ class LocalizerNode(Node):
             self._cloud_is_new = False
             init_T = self._machine.T_map_odom.copy()
             converging = self._machine.state == LocalizerState.CONVERGING
+            registration_generation = self._initial_pose_generation
 
         points = self._cloud_to_odom_points(cloud_msg)
         if points is None:
@@ -334,15 +338,38 @@ class LocalizerNode(Node):
         points = cloud_utils.crop_range(
             points, center, self._min_range, self._max_range
         )
+        if len(points) < self._min_points:
+            self._record_registration_rejection(
+                f"too_few_points({len(points)})",
+                source_points=len(points),
+                generation=registration_generation,
+            )
+            return
 
         distance = (
             self._converging_distance if converging else self._tracking_distance
         )
         started = time.monotonic()
-        outcome = self._map_target.register(points, init_T, distance)
+        try:
+            outcome = self._map_target.register(points, init_T, distance)
+        except Exception as exc:
+            elapsed_ms = (time.monotonic() - started) * 1000.0
+            self.get_logger().error(
+                f"registration failed: {exc}",
+                throttle_duration_sec=5.0,
+            )
+            self._record_registration_rejection(
+                f"registration_error({type(exc).__name__})",
+                source_points=len(points),
+                elapsed_ms=elapsed_ms,
+                generation=registration_generation,
+            )
+            return
         elapsed_ms = (time.monotonic() - started) * 1000.0
 
         with self._lock:
+            if registration_generation != self._initial_pose_generation:
+                return
             result = self._machine.update(outcome)
             state = self._machine.state
             T_map_odom = (
@@ -376,6 +403,36 @@ class LocalizerNode(Node):
         self._publish_diagnostics(state)
 
     # -- helpers -------------------------------------------------------------
+
+    def _record_registration_rejection(
+        self,
+        reason: str,
+        source_points: int,
+        elapsed_ms: float = 0.0,
+        generation: int | None = None,
+    ) -> None:
+        with self._lock:
+            if (
+                generation is not None
+                and generation != self._initial_pose_generation
+            ):
+                return
+            result = self._machine.reject(reason)
+            state = self._machine.state
+            self._last_registration_ms = elapsed_ms
+            self._cycles_since_accept += 1
+            self._last_outcome_info = {
+                "reason": result.reason,
+                "source_points": str(source_points),
+                "registration_ms": f"{elapsed_ms:.1f}",
+            }
+
+        if result.state_changed:
+            self._publish_state()
+            self.get_logger().warn(
+                f"localization state -> {state.value} ({result.reason})"
+            )
+        self._publish_diagnostics(state)
 
     def _cloud_to_odom_points(self, msg: PointCloud2) -> np.ndarray | None:
         points = cloud_utils.pointcloud2_to_xyz(msg)

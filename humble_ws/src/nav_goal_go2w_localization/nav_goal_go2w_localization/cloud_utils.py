@@ -24,10 +24,18 @@ def pointcloud2_to_xyz(msg) -> np.ndarray:
             "itemsize": msg.point_step,
         }
     )
-    count = (msg.width * msg.height * msg.point_step) // msg.point_step
-    structured = np.frombuffer(msg.data, dtype=dtype, count=count)
+    structured = np.ndarray(
+        shape=(msg.height, msg.width),
+        dtype=dtype,
+        buffer=msg.data,
+        strides=(msg.row_step, msg.point_step),
+    )
     points = np.column_stack(
-        (structured["x"], structured["y"], structured["z"])
+        (
+            structured["x"].ravel(),
+            structured["y"].ravel(),
+            structured["z"].ravel(),
+        )
     ).astype(np.float32)
     return points[np.isfinite(points).all(axis=1)]
 

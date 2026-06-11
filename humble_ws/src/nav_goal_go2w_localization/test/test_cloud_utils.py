@@ -1,3 +1,6 @@
+import struct
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -50,6 +53,36 @@ def test_pointcloud2_to_xyz_with_padding_and_nans():
     assert points.shape == (3, 3)  # NaN row dropped
     np.testing.assert_allclose(points[:, 0], [1, 2, 4])
     np.testing.assert_allclose(points[:, 2], [5, 6, 8])
+
+
+def test_pointcloud2_to_xyz_respects_organized_row_padding():
+    data = bytearray(64)
+    for offset, values in (
+        (0, (1.0, 2.0, 3.0)),
+        (12, (4.0, 5.0, 6.0)),
+        (32, (7.0, 8.0, 9.0)),
+        (44, (10.0, 11.0, 12.0)),
+    ):
+        struct.pack_into("<fff", data, offset, *values)
+
+    msg = SimpleNamespace(
+        fields=[
+            SimpleNamespace(name="x", offset=0),
+            SimpleNamespace(name="y", offset=4),
+            SimpleNamespace(name="z", offset=8),
+        ],
+        width=2,
+        height=2,
+        point_step=12,
+        row_step=32,
+        data=bytes(data),
+    )
+
+    points = pointcloud2_to_xyz(msg)
+    np.testing.assert_allclose(
+        points,
+        [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]],
+    )
 
 
 def test_pointcloud2_missing_field_raises():

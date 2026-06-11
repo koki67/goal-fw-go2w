@@ -1,4 +1,6 @@
 """Unit tests for the pure-Python goal_policy module."""
+import math
+
 import pytest
 
 from nav_goal_go2w_planner.goal_policy import (
@@ -11,11 +13,23 @@ from nav_goal_go2w_planner.goal_policy import (
     planar_distance,
     parse_goal_update_strategy,
     should_cancel_for_timeout,
+    yaw_distance,
 )
 
 
-def _g(x: float = 0.0, y: float = 0.0, frame: str = "map") -> GoalPose:
-    return GoalPose(frame_id=frame, x=x, y=y)
+def _g(
+    x: float = 0.0,
+    y: float = 0.0,
+    frame: str = "map",
+    yaw: float = 0.0,
+) -> GoalPose:
+    return GoalPose(
+        frame_id=frame,
+        x=x,
+        y=y,
+        qz=math.sin(yaw / 2.0),
+        qw=math.cos(yaw / 2.0),
+    )
 
 
 class TestPureFunctions:
@@ -26,6 +40,10 @@ class TestPureFunctions:
 
     def test_planar_distance(self):
         assert planar_distance(_g(0, 0), _g(3, 4)) == pytest.approx(5.0)
+
+    def test_yaw_distance_wraps_at_pi(self):
+        distance = yaw_distance(_g(yaw=math.pi - 0.1), _g(yaw=-math.pi + 0.1))
+        assert distance == pytest.approx(0.2)
 
     def test_timeout_disabled_when_started_none(self):
         assert not should_cancel_for_timeout(None, 100.0, 10.0, False)
@@ -64,6 +82,20 @@ class TestGoalPolicy:
         p = GoalPolicy(min_update_distance=0.5)
         p.offer(_g(0, 0), can_dispatch=True)
         d = p.offer(_g(0.1, 0.1), can_dispatch=True)
+        assert d.action == Action.NONE
+        assert d.reason == "duplicate_active"
+
+    def test_orientation_only_update_is_not_suppressed(self):
+        p = GoalPolicy(min_update_distance=0.5, min_update_yaw=math.radians(5.0))
+        p.offer(_g(0, 0), can_dispatch=True)
+        d = p.offer(_g(0, 0, yaw=math.radians(90.0)), can_dispatch=True)
+        assert d.action == Action.QUEUE
+        assert d.reason == "queued_while_active"
+
+    def test_small_orientation_change_is_suppressed(self):
+        p = GoalPolicy(min_update_distance=0.5, min_update_yaw=math.radians(5.0))
+        p.offer(_g(0, 0), can_dispatch=True)
+        d = p.offer(_g(0, 0, yaw=math.radians(2.0)), can_dispatch=True)
         assert d.action == Action.NONE
         assert d.reason == "duplicate_active"
 

@@ -62,6 +62,8 @@ RUN apt-get update -q && \
 
 RUN pip3 install --no-cache-dir \
         distro \
+        pypcd4==1.4.3 \
+        small_gicp==1.0.0 \
         transforms3d \
         websocket-client
 

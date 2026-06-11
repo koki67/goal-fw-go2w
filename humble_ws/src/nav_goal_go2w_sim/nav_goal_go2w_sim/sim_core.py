@@ -139,7 +139,10 @@ def clamp_twist(
     vy_max: float,
     wz_max: float,
 ) -> Twist2D:
-    """Clamp each velocity axis independently."""
+    """Clamp each velocity axis independently, stopping on invalid input."""
+
+    if not all(math.isfinite(value) for value in (twist.vx, twist.vy, twist.wz)):
+        return Twist2D(0.0, 0.0, 0.0)
 
     return Twist2D(
         vx=max(-vx_max, min(vx_max, twist.vx)),

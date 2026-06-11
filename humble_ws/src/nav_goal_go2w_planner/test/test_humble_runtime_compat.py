@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 SRC_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 LOGGER_METHODS = {"debug", "info", "warning", "warn", "error", "fatal"}
 
 
@@ -38,3 +39,94 @@ def test_rclpy_logger_calls_are_humble_compatible():
             offenders.append(f"{path.relative_to(SRC_ROOT)}:{node.lineno}")
 
     assert offenders == []
+
+
+def test_imu_publisher_receives_use_sim_time():
+    launch_file = (
+        SRC_ROOT / "nav_goal_go2w_bringup" / "launch" / "bringup.launch.py"
+    )
+    source = launch_file.read_text(encoding="utf-8")
+    imu_node = source[source.index("imu_node = Node("):source.index("# ---- 5. D-LIO")]
+    assert "parameters=[{\"use_sim_time\": use_sim_time}]" in imu_node
+
+
+def test_desktop_devcontainers_install_manual_python_dependencies():
+    required = {"pypcd4==1.4.3", "small_gicp==1.0.0"}
+    for relative_path in (
+        ".devcontainer/Dockerfile",
+        ".devcontainer/macos/Dockerfile",
+    ):
+        source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        missing = sorted(
+            dependency for dependency in required if dependency not in source
+        )
+        assert missing == [], f"{relative_path} missing: {missing}"
+
+
+def test_hesai_static_library_is_position_independent():
+    cmake_file = SRC_ROOT / "hesai_lidar" / "CMakeLists.txt"
+    source = cmake_file.read_text(encoding="utf-8")
+    assert (
+        "set_target_properties(PandarGeneral PROPERTIES "
+        "POSITION_INDEPENDENT_CODE TRUE)"
+    ) in source
+
+
+def test_localizer_discards_stale_registration_generations():
+    source = (
+        SRC_ROOT
+        / "nav_goal_go2w_localization"
+        / "nav_goal_go2w_localization"
+        / "localizer_node.py"
+    ).read_text(encoding="utf-8")
+    assert "self._initial_pose_generation += 1" in source
+    assert "registration_generation = self._initial_pose_generation" in source
+    assert "registration_generation != self._initial_pose_generation" in source
+    assert "generation=registration_generation" in source
+
+
+def test_executor_validates_before_offer_and_retries_result_queries():
+    source = (
+        SRC_ROOT
+        / "nav_goal_go2w_planner"
+        / "nav_goal_go2w_planner"
+        / "goal_pose_executor.py"
+    ).read_text(encoding="utf-8")
+    on_goal = source[source.index("    def _on_goal"):source.index("    def _on_timer")]
+    assert on_goal.index("self._validate_goal(candidate)") < on_goal.index(
+        "self._policy.offer(candidate"
+    )
+    collect_result = source[
+        source.index("    def _maybe_collect_result"):
+        source.index("    # --- Helpers")
+    ]
+    assert "result = TaskResult.UNKNOWN" not in collect_result
+    assert (
+        "self.get_logger().error(\"Nav2 result query failed: %s\" % exc)\n"
+        "            return"
+    ) in collect_result
+
+
+def test_executor_caches_goal_validation_until_map_changes():
+    source = (
+        SRC_ROOT
+        / "nav_goal_go2w_planner"
+        / "nav_goal_go2w_planner"
+        / "goal_pose_executor.py"
+    ).read_text(encoding="utf-8")
+    map_callback = source[
+        source.index("    def _on_validation_map"):
+        source.index("    def _on_localization_state")
+    ]
+    assert "self._goal_validation_cache.clear()" in map_callback
+    validate_goal = source[
+        source.index("    def _validate_goal"):
+        source.index("    def _maybe_cancel_if_goal_invalid")
+    ]
+    assert validate_goal.index("cached = self._goal_validation_cache.get(cache_key)") < (
+        validate_goal.index("self._tf_buffer.lookup_transform")
+    )
+    assert validate_goal.index("self._tf_buffer.lookup_transform") < (
+        validate_goal.index("result = validate_goal_reachable")
+    )
+    assert "self._goal_validation_cache[cache_key] = result" in validate_goal
