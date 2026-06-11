@@ -39,7 +39,7 @@ Stop goal navigation or the previous mapping session before collecting. The
 helper rejects `/velocity_bridge` and duplicate Hesai/IMU/D-LIO nodes so two
 systems cannot command or process the robot concurrently.
 
-**Finish window waits forever for `/dlio_map_node/save_pcd`**
+**Finish window waits forever for `/save_pcd`**
 Inspect the `collect` window and check `ros2 topic hz /points_raw /go2w/imu`.
 D-LIO must start successfully before its map-save service appears.
 

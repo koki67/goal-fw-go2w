@@ -3,7 +3,8 @@
 Goal-directed autonomous navigation framework for the Unitree Go2-W.
 
 Given a pre-built 3D point cloud map, this stack localizes the robot against
-that map and navigates to goals picked by an operator in RViz. This repository
+that map and navigates to goals picked by an operator in RViz or the optional
+browser UI. This repository
 can collect that map with a remotely controlled Go2W equipped with its Hesai
 3D LiDAR, or consume a PCD produced by another mapping workflow.
 
@@ -28,6 +29,9 @@ bash docker/run.sh
 # inside the container:
 bash /external/scripts/prepare_map_tmux.sh output:=/external/maps/office
 ```
+
+Add `web_ui:=true` and open `http://<jetson-ip>:8080` for the tablet/browser
+preparation view and finish button.
 
 Two tmux windows open:
 
@@ -65,6 +69,9 @@ velocity bridge publish `/api/sport/request`.
 ```bash
 bash /external/scripts/bringup_tmux.sh map:=/external/maps/office
 ```
+
+Add `web_ui:=true` and open `http://<jetson-ip>:8080` to set the initial pose
+and send goals from a browser. RViz remains available independently.
 
 Three tmux windows start simultaneously:
 
@@ -177,6 +184,7 @@ correct. `bash scripts/smoke_test.sh` runs the loop headless.
 | [docs/tuning-parameters.md](docs/tuning-parameters.md) | the knobs that matter, per subsystem |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | localization, map, navigation, DDS issues |
 | [docs/remote-visualization.md](docs/remote-visualization.md) | desktop RViz over Wi-Fi DDS |
+| [docs/web-ui.md](docs/web-ui.md) | browser navigation and map-preparation operator UI |
 | [docs/result-recording.md](docs/result-recording.md) | rosbag capture + replay |
 | [docs/vendored-upstreams.md](docs/vendored-upstreams.md) | upstream SHAs + local fixes |
 
