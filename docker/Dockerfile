@@ -55,6 +55,7 @@ RUN apt-get update -q && \
         ros-humble-ros2bag \
         ros-humble-rosbag2-storage-default-plugins \
         ros-humble-robot-state-publisher \
+        ros-humble-rosbridge-suite \
         ros-humble-rviz2 \
         ros-humble-rmw-cyclonedds-cpp \
         ros-humble-pcl-conversions \

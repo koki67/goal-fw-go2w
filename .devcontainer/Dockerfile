@@ -37,6 +37,7 @@ RUN apt-get update -q && \
         ros-humble-rosbag2 \
         ros-humble-rosbag2-storage-default-plugins \
         ros-humble-robot-state-publisher \
+        ros-humble-rosbridge-suite \
         ros-humble-rosidl-generator-dds-idl \
         ros-humble-rviz2 \
         ros-humble-slam-toolbox \
