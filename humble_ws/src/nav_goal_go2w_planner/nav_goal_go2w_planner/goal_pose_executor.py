@@ -43,6 +43,7 @@ from nav_goal_go2w_planner.goal_policy import (
     should_cancel_for_timeout,
 )
 from nav_goal_go2w_planner.goal_validation import (
+    GoalValidationResult,
     Pose2D,
     ValidationGrid,
     validate_goal_reachable,
@@ -130,6 +131,9 @@ class GoalPoseExecutorNode(Node):
         self._last_result_text = "no goals yet"
         self._last_failed_goal: Optional[GoalPose] = None
         self._latest_validation_map: Optional[OccupancyGrid] = None
+        self._goal_validation_cache: dict[
+            tuple[str, float, float], GoalValidationResult
+        ] = {}
         self._validation_map_sub = None
         if self._goal_validation_map_topic:
             validation_qos = QoSProfile(depth=1)
@@ -185,6 +189,7 @@ class GoalPoseExecutorNode(Node):
 
     def _on_validation_map(self, msg: OccupancyGrid) -> None:
         self._latest_validation_map = msg
+        self._goal_validation_cache.clear()
 
     def _on_localization_state(self, msg: String) -> None:
         previous = self._localization_state
@@ -352,7 +357,7 @@ class GoalPoseExecutorNode(Node):
             self._localization_cancel_requested = False
             self.get_logger().error("cancelTask() for localization raised: %s" % exc)
 
-    def _validate_goal(self, goal: GoalPose):
+    def _validate_goal(self, goal: GoalPose) -> Optional[GoalValidationResult]:
         if not self._goal_validation_map_topic:
             return None
         validation_map = self._latest_validation_map
@@ -372,6 +377,10 @@ class GoalPoseExecutorNode(Node):
                 5.0,
             )
             return None
+        cache_key = (goal.frame_id.strip(), goal.x, goal.y)
+        cached = self._goal_validation_cache.get(cache_key)
+        if cached is not None:
+            return cached
         try:
             transform = self._tf_buffer.lookup_transform(
                 self._global_frame,
@@ -394,7 +403,7 @@ class GoalPoseExecutorNode(Node):
             y=float(transform.transform.translation.y),
         )
         try:
-            return validate_goal_reachable(
+            result = validate_goal_reachable(
                 validation_map.data,
                 grid,
                 robot_pose,
@@ -411,6 +420,8 @@ class GoalPoseExecutorNode(Node):
                 5.0,
             )
             return None
+        self._goal_validation_cache[cache_key] = result
+        return result
 
     def _maybe_cancel_if_goal_invalid(self) -> None:
         if (

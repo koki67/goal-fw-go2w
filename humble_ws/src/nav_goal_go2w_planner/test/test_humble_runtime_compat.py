@@ -105,3 +105,28 @@ def test_executor_validates_before_offer_and_retries_result_queries():
         "self.get_logger().error(\"Nav2 result query failed: %s\" % exc)\n"
         "            return"
     ) in collect_result
+
+
+def test_executor_caches_goal_validation_until_map_changes():
+    source = (
+        SRC_ROOT
+        / "nav_goal_go2w_planner"
+        / "nav_goal_go2w_planner"
+        / "goal_pose_executor.py"
+    ).read_text(encoding="utf-8")
+    map_callback = source[
+        source.index("    def _on_validation_map"):
+        source.index("    def _on_localization_state")
+    ]
+    assert "self._goal_validation_cache.clear()" in map_callback
+    validate_goal = source[
+        source.index("    def _validate_goal"):
+        source.index("    def _maybe_cancel_if_goal_invalid")
+    ]
+    assert validate_goal.index("cached = self._goal_validation_cache.get(cache_key)") < (
+        validate_goal.index("self._tf_buffer.lookup_transform")
+    )
+    assert validate_goal.index("self._tf_buffer.lookup_transform") < (
+        validate_goal.index("result = validate_goal_reachable")
+    )
+    assert "self._goal_validation_cache[cache_key] = result" in validate_goal
