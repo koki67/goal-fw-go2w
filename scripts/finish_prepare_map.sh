@@ -6,7 +6,7 @@ set -euo pipefail
 OUTPUT=""
 SESSION=""
 SAVE_LEAF_SIZE="0.05"
-SAVE_SERVICE="/dlio_map_node/save_pcd"
+SAVE_SERVICE="/save_pcd"
 
 usage() {
     cat <<'USAGE'
