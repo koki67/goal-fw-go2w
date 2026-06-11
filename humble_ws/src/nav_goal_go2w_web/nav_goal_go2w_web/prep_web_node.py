@@ -1,0 +1,120 @@
+"""Publish a bounded live mapping preview and expose browser map finalization."""
+from __future__ import annotations
+
+import threading
+import time
+from pathlib import Path
+
+import rclpy
+from direct_lidar_inertial_odometry.srv import SavePCD
+from nav_msgs.msg import OccupancyGrid
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
+from sensor_msgs.msg import PointCloud2
+from std_msgs.msg import String
+from std_srvs.srv import Trigger
+
+from nav_goal_go2w_map.finish_map_core import finish_map
+from nav_goal_go2w_web.prep_grid_core import pointcloud2_to_xyz, project_points
+
+LATCHED_QOS = QoSProfile(reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.TRANSIENT_LOCAL, history=HistoryPolicy.KEEP_LAST, depth=1)
+
+
+class PrepWebNode(Node):
+    def __init__(self) -> None:
+        super().__init__("prep_web_node")
+        for name, default in (("cloud_topic", "/dlio/map_node/map"), ("output", ""),
+                              ("save_leaf_size", 0.05), ("resolution", 0.10),
+                              ("z_min", -0.25), ("z_max", 1.75), ("publish_period_s", 2.0)):
+            self.declare_parameter(name, default)
+        self._latest = None
+        self._latest_frame = "odom"
+        self._cloud_lock = threading.Lock()
+        self._finish_lock = threading.Lock()
+        self._grid_pub = self.create_publisher(OccupancyGrid, "/web/prep_grid", LATCHED_QOS)
+        self._status_pub = self.create_publisher(String, "/web/prep_status", LATCHED_QOS)
+        self._save_group = ReentrantCallbackGroup()
+        self._service_group = MutuallyExclusiveCallbackGroup()
+        self._save_client = self.create_client(SavePCD, "/save_pcd", callback_group=self._save_group)
+        self.create_subscription(PointCloud2, str(self.get_parameter("cloud_topic").value), self._cloud_cb, qos_profile_sensor_data)
+        self.create_service(Trigger, "/web/finish_map", self._finish_cb, callback_group=self._service_group)
+        self.create_timer(float(self.get_parameter("publish_period_s").value), self._publish_grid)
+        self._status("IDLE")
+
+    def _status(self, text: str) -> None:
+        self._status_pub.publish(String(data=text))
+        self.get_logger().info(text)
+
+    def _cloud_cb(self, msg: PointCloud2) -> None:
+        points = pointcloud2_to_xyz(msg)
+        with self._cloud_lock:
+            self._latest = points
+            self._latest_frame = msg.header.frame_id or "odom"
+
+    def _publish_grid(self) -> None:
+        with self._cloud_lock:
+            points = self._latest
+            frame = self._latest_frame
+        if points is None:
+            return
+        grid = project_points(points, resolution=float(self.get_parameter("resolution").value),
+            z_min=float(self.get_parameter("z_min").value), z_max=float(self.get_parameter("z_max").value))
+        msg = OccupancyGrid()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = frame
+        msg.info.map_load_time = msg.header.stamp
+        msg.info.resolution = grid.resolution
+        msg.info.width = grid.width
+        msg.info.height = grid.height
+        msg.info.origin.position.x = grid.origin_x
+        msg.info.origin.position.y = grid.origin_y
+        msg.info.origin.orientation.w = 1.0
+        msg.data = grid.data.tolist()
+        self._grid_pub.publish(msg)
+
+    def _save(self, raw_dir: Path, leaf: float) -> None:
+        if not self._save_client.wait_for_service(timeout_sec=5.0):
+            raise RuntimeError("map save service is unavailable: /save_pcd")
+        request = SavePCD.Request(leaf_size=leaf, save_path=str(raw_dir))
+        future = self._save_client.call_async(request)
+        while not future.done():
+            time.sleep(0.05)
+        response = future.result()
+        if response is None or not response.success:
+            raise RuntimeError("D-LIO reported a failed save")
+
+    def _finish_cb(self, _request: Trigger.Request, response: Trigger.Response) -> Trigger.Response:
+        if not self._finish_lock.acquire(blocking=False):
+            response.success = False
+            response.message = "map finalization is already running"
+            return response
+        try:
+            output = str(self.get_parameter("output").value)
+            result = finish_map(output, float(self.get_parameter("save_leaf_size").value), self._save, self._status)
+            response.success = True
+            response.message = str(result)
+        except Exception as exc:
+            response.success = False
+            response.message = str(exc)
+        finally:
+            self._finish_lock.release()
+        return response
+
+
+def main(args=None) -> None:
+    rclpy.init(args=args)
+    node = PrepWebNode()
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        executor.shutdown()
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
