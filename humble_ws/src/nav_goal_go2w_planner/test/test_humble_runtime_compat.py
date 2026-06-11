@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 SRC_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 LOGGER_METHODS = {"debug", "info", "warning", "warn", "error", "fatal"}
 
 
@@ -47,3 +48,16 @@ def test_imu_publisher_receives_use_sim_time():
     source = launch_file.read_text(encoding="utf-8")
     imu_node = source[source.index("imu_node = Node("):source.index("# ---- 5. D-LIO")]
     assert "parameters=[{\"use_sim_time\": use_sim_time}]" in imu_node
+
+
+def test_desktop_devcontainers_install_manual_python_dependencies():
+    required = {"pypcd4==1.4.3", "small_gicp==1.0.0"}
+    for relative_path in (
+        ".devcontainer/Dockerfile",
+        ".devcontainer/macos/Dockerfile",
+    ):
+        source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        missing = sorted(
+            dependency for dependency in required if dependency not in source
+        )
+        assert missing == [], f"{relative_path} missing: {missing}"
