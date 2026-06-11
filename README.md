@@ -2,10 +2,10 @@
 
 Goal-directed autonomous navigation framework for the Unitree Go2-W.
 
-Given a pre-built 3D point cloud map — produced by
-[frontier-fw-go2w](../frontier-fw-go2w) (D-LIO `save_pcd`) or by a human
-carrying a LiDAR through the environment — this stack localizes the robot
-against that map and navigates to goals picked by an operator in RViz.
+Given a pre-built 3D point cloud map, this stack localizes the robot against
+that map and navigates to goals picked by an operator in RViz. This repository
+can collect that map with a remotely controlled Go2W equipped with its Hesai
+3D LiDAR, or consume a PCD produced by another mapping workflow.
 
 ```
 prepare_map ─► map dir ─► map_server + map_cloud ─► RViz operator
@@ -19,9 +19,18 @@ RViz 2D Nav Goal ─► goal executor ─► Nav2 (NavFn + MPPI) ─► velocity
 bash scripts/build_image.sh                  # once, on the Jetson
 bash docker/run.sh
 # inside the container:
-ros2 run nav_goal_go2w_map prepare_map --input /external/maps/raw.pcd --output /external/maps/office
+bash /external/scripts/prepare_map_tmux.sh output:=/external/maps/office
+# drive with the separately deployed go2w_teleop_gamepad, then press Enter
+# in the tmux finish window
+# stop the external teleop before enabling the live navigation velocity bridge
 bash /external/scripts/bringup_tmux.sh map:=/external/maps/office
 ```
+
+The robot-driven map preparation workflow is specifically for the Go2W with
+the Hesai LiDAR. It requires the separately deployed
+[`go2w_teleop_gamepad`](https://github.com/koki67/go2w_teleop_gamepad)
+node to already be running and visible as `/go2w_teleop_gamepad_node`.
+See [docs/map-preparation.md](docs/map-preparation.md) before the first run.
 
 In RViz (desktop: `.devcontainer/start_remote_rviz.bash <wifi-iface>`):
 
