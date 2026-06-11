@@ -70,3 +70,38 @@ def test_hesai_static_library_is_position_independent():
         "set_target_properties(PandarGeneral PROPERTIES "
         "POSITION_INDEPENDENT_CODE TRUE)"
     ) in source
+
+
+def test_localizer_discards_stale_registration_generations():
+    source = (
+        SRC_ROOT
+        / "nav_goal_go2w_localization"
+        / "nav_goal_go2w_localization"
+        / "localizer_node.py"
+    ).read_text(encoding="utf-8")
+    assert "self._initial_pose_generation += 1" in source
+    assert "registration_generation = self._initial_pose_generation" in source
+    assert "registration_generation != self._initial_pose_generation" in source
+    assert "generation=registration_generation" in source
+
+
+def test_executor_validates_before_offer_and_retries_result_queries():
+    source = (
+        SRC_ROOT
+        / "nav_goal_go2w_planner"
+        / "nav_goal_go2w_planner"
+        / "goal_pose_executor.py"
+    ).read_text(encoding="utf-8")
+    on_goal = source[source.index("    def _on_goal"):source.index("    def _on_timer")]
+    assert on_goal.index("self._validate_goal(candidate)") < on_goal.index(
+        "self._policy.offer(candidate"
+    )
+    collect_result = source[
+        source.index("    def _maybe_collect_result"):
+        source.index("    # --- Helpers")
+    ]
+    assert "result = TaskResult.UNKNOWN" not in collect_result
+    assert (
+        "self.get_logger().error(\"Nav2 result query failed: %s\" % exc)\n"
+        "            return"
+    ) in collect_result

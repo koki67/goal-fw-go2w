@@ -218,6 +218,20 @@ class GoalPoseExecutorNode(Node):
             qz=msg.pose.orientation.z,
             qw=msg.pose.orientation.w,
         )
+        validation = self._validate_goal(candidate)
+        if validation is not None and not validation.valid:
+            self.get_logger().warning(
+                "Rejecting goal x=%.2f y=%.2f on %s (%s)."
+                % (
+                    candidate.x,
+                    candidate.y,
+                    self._goal_validation_map_topic,
+                    validation.reason,
+                )
+            )
+            self._record_failure(candidate, "validation: %s" % validation.reason)
+            self._publish_status("REJECTED (validation: %s)" % validation.reason)
+            return
         decision = self._policy.offer(candidate, can_dispatch=self._can_dispatch())
         self._apply(decision)
 
@@ -338,17 +352,9 @@ class GoalPoseExecutorNode(Node):
             self._localization_cancel_requested = False
             self.get_logger().error("cancelTask() for localization raised: %s" % exc)
 
-    def _maybe_cancel_if_goal_invalid(self) -> None:
-        if (
-            not self._goal_validation_map_topic
-            or self._validation_cancel_requested
-            or self._timeout_requested
-            or self._preempt_requested
-        ):
-            return
-        active = self._policy.active
-        if active is None:
-            return
+    def _validate_goal(self, goal: GoalPose):
+        if not self._goal_validation_map_topic:
+            return None
         validation_map = self._latest_validation_map
         if validation_map is None:
             self._throttled(
@@ -356,16 +362,16 @@ class GoalPoseExecutorNode(Node):
                 "Waiting for goal validation map on %s." % self._goal_validation_map_topic,
                 5.0,
             )
-            return
+            return None
         map_frame = validation_map.header.frame_id.strip()
         if not frames_match(map_frame, self._global_frame):
             self._throttled(
                 "validation_frame_mismatch",
-                "Skipping goal validation map in frame '%s' (expected '%s')."
+                "Skipping goal validation map in frame %s (expected %s)."
                 % (map_frame or "<empty>", self._global_frame),
                 5.0,
             )
-            return
+            return None
         try:
             transform = self._tf_buffer.lookup_transform(
                 self._global_frame,
@@ -380,7 +386,7 @@ class GoalPoseExecutorNode(Node):
                 % (self._global_frame, self._robot_base_frame, exc),
                 5.0,
             )
-            return
+            return None
 
         grid = self._validation_grid(validation_map)
         robot_pose = Pose2D(
@@ -388,20 +394,36 @@ class GoalPoseExecutorNode(Node):
             y=float(transform.transform.translation.y),
         )
         try:
-            result = validate_goal_reachable(
+            return validate_goal_reachable(
                 validation_map.data,
                 grid,
                 robot_pose,
-                Pose2D(active.x, active.y),
+                Pose2D(goal.x, goal.y),
                 reachable_cost_threshold=self._goal_validation_reachable_cost_threshold,
                 seed_search_radius=self._goal_validation_seed_search_radius,
                 connectivity=self._goal_validation_connectivity,
                 treat_unknown_as_reachable=self._treat_unknown_as_reachable,
             )
         except ValueError as exc:
-            self._throttled("validation_grid_invalid", "Skipping goal validation: %s" % exc, 5.0)
+            self._throttled(
+                "validation_grid_invalid",
+                "Skipping goal validation: %s" % exc,
+                5.0,
+            )
+            return None
+
+    def _maybe_cancel_if_goal_invalid(self) -> None:
+        if (
+            self._validation_cancel_requested
+            or self._timeout_requested
+            or self._preempt_requested
+        ):
             return
-        if result.valid:
+        active = self._policy.active
+        if active is None:
+            return
+        result = self._validate_goal(active)
+        if result is None or result.valid:
             return
 
         self._validation_cancel_requested = True
@@ -446,7 +468,7 @@ class GoalPoseExecutorNode(Node):
                 result = self._navigator.getResult()
         except Exception as exc:
             self.get_logger().error("Nav2 result query failed: %s" % exc)
-            result = TaskResult.UNKNOWN
+            return
 
         active = self._policy.active
         was_timeout = self._timeout_requested

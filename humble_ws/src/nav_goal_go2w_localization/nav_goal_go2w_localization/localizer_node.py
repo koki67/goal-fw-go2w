@@ -198,6 +198,7 @@ class LocalizerNode(Node):
         self._last_registration_ms = 0.0
         self._last_outcome_info: dict[str, str] = {}
         self._cycles_since_accept = 0
+        self._initial_pose_generation = 0
 
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
@@ -285,6 +286,7 @@ class LocalizerNode(Node):
         T_map_base = pose_msg_to_matrix(msg.pose.pose)
         with self._lock:
             self._machine.set_initial_pose(T_map_base, T_odom_base)
+            self._initial_pose_generation += 1
         self._publish_state()
         position = msg.pose.pose.position
         self.get_logger().info(
@@ -327,6 +329,7 @@ class LocalizerNode(Node):
             self._cloud_is_new = False
             init_T = self._machine.T_map_odom.copy()
             converging = self._machine.state == LocalizerState.CONVERGING
+            registration_generation = self._initial_pose_generation
 
         points = self._cloud_to_odom_points(cloud_msg)
         if points is None:
@@ -339,6 +342,7 @@ class LocalizerNode(Node):
             self._record_registration_rejection(
                 f"too_few_points({len(points)})",
                 source_points=len(points),
+                generation=registration_generation,
             )
             return
 
@@ -358,11 +362,14 @@ class LocalizerNode(Node):
                 f"registration_error({type(exc).__name__})",
                 source_points=len(points),
                 elapsed_ms=elapsed_ms,
+                generation=registration_generation,
             )
             return
         elapsed_ms = (time.monotonic() - started) * 1000.0
 
         with self._lock:
+            if registration_generation != self._initial_pose_generation:
+                return
             result = self._machine.update(outcome)
             state = self._machine.state
             T_map_odom = (
@@ -402,8 +409,14 @@ class LocalizerNode(Node):
         reason: str,
         source_points: int,
         elapsed_ms: float = 0.0,
+        generation: int | None = None,
     ) -> None:
         with self._lock:
+            if (
+                generation is not None
+                and generation != self._initial_pose_generation
+            ):
+                return
             result = self._machine.reject(reason)
             state = self._machine.state
             self._last_registration_ms = elapsed_ms
