@@ -1,11 +1,11 @@
-const $=id=>document.getElementById(id);let ros,topics=[],mode='detecting',subscriptions=[];
+const $=id=>document.getElementById(id);let ros,topics=[],mode='detecting',subscriptions=[],modeTimer=null;
 const renderer=new MapRenderer($('map'),publishPose);
 function badge(text,good=false){$('connection').textContent=text;$('connection').className='badge '+(good?'good':'bad')}
 function connect(){let port=new URLSearchParams(location.search).get('rosbridge_port')||'9090';ros=new ROSLIB.Ros({url:`ws://${location.hostname}:${port}`});ros.on('connection',()=>{badge('CONNECTED',true);setup()});ros.on('close',()=>{badge('DISCONNECTED');clearSubs();setTimeout(connect,2000)});ros.on('error',()=>badge('CONNECTION ERROR'))}
-function clearSubs(){subscriptions.forEach(t=>t.unsubscribe());subscriptions=[]}
+function clearSubs(){subscriptions.forEach(t=>t.unsubscribe());subscriptions=[];clearInterval(modeTimer);modeTimer=null}
 function topic(name,type,cb,opt={}){let t=new ROSLIB.Topic({ros,name,messageType:type,compression:opt.compression||'none',throttle_rate:opt.throttle||0});t.subscribe(cb);subscriptions.push(t);return t}
 function latched(name,type,cb,opt={}){let got=false,t=topic(name,type,m=>{got=true;cb(m)},opt),retry=setInterval(()=>{if(got||!ros||!ros.isConnected){clearInterval(retry);return}t.unsubscribe();t.subscribe(m=>{got=true;cb(m)})},3000);return t}
-function setup(){clearSubs();mode='detecting';ros.getTopics(result=>{topics=result.topics||[];detect();subscribeCommon();setInterval(pollMode,5000)})}
+function setup(){clearSubs();mode='detecting';ros.getTopics(result=>{topics=result.topics||[];detect();subscribeCommon();clearInterval(modeTimer);modeTimer=setInterval(pollMode,5000)})}
 function pollMode(){if(!ros||!ros.isConnected)return;ros.getTopics(r=>{topics=r.topics||[];detect()})}
 function detect(){let next=topics.includes('/map')?'navigation':topics.includes('/web/prep_grid')?'preparation':'detecting';if(next===mode)return;mode=next;$('mode').textContent=mode.toUpperCase();$('nav-controls').classList.toggle('hidden',mode!=='navigation');$('prep-controls').classList.toggle('hidden',mode!=='preparation');subscribeMode()}
 function subscribeCommon(){latched('/localization/state','std_msgs/String',m=>$('localization').textContent=m.data);latched('/goal_executor/status','std_msgs/String',m=>$('goal-status').textContent=m.data);topic('/localization/fitness','std_msgs/Float32',m=>$('fitness').textContent=Number(m.data).toFixed(3),{throttle:1000})}
