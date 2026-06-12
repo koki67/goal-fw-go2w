@@ -43,14 +43,38 @@ def test_finish_map_refuses_existing_output(tmp_path):
     assert statuses[-1].startswith("FAILED output already exists")
 
 
-def test_finish_map_retains_staging_on_failed_save(tmp_path):
+def test_finish_map_removes_empty_staging_on_failed_save(tmp_path):
     output = tmp_path / "office"
     statuses = []
     with pytest.raises(RuntimeError):
         finish_map_core.finish_map(output, 0.05, lambda *_: None, statuses.append)
-    assert len(list(tmp_path.glob(".office.prepare-map.*/office/raw"))) == 1
+    assert not list(tmp_path.glob(".office.prepare-map.*"))
     assert statuses[0] == "SAVING"
     assert statuses[-1].startswith("FAILED ")
+
+
+def test_finish_map_retains_saved_map_on_failed_conversion(tmp_path, monkeypatch):
+    import sys
+    import types
+
+    monkeypatch.setitem(
+        sys.modules,
+        "nav_goal_go2w_map.prepare_map_cli",
+        types.SimpleNamespace(main=lambda argv: 1),
+    )
+    output = tmp_path / "office"
+    statuses = []
+
+    def save(raw_dir, leaf):
+        (raw_dir / "dlio_map.pcd").write_text("pcd")
+
+    with pytest.raises(RuntimeError):
+        finish_map_core.finish_map(output, 0.05, save, statuses.append)
+    staging = list(tmp_path.glob(".office.prepare-map.*"))
+    assert len(staging) == 1
+    assert (staging[0] / "office" / "raw" / "dlio_map.pcd").read_text() == "pcd"
+    assert statuses[-1].startswith("FAILED ")
+    assert f"partial map retained in {staging[0]}" in statuses[-1]
 
 
 def test_finish_map_requires_absolute_output():

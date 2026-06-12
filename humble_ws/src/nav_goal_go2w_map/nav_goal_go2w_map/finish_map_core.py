@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Callable
@@ -18,6 +19,8 @@ def finish_map(
 ) -> Path:
     """Save D-LIO, convert it, and atomically publish the completed directory."""
     output_path = Path(output)
+    staging_root: Path | None = None
+    raw_pcd: Path | None = None
     try:
         if not output_path.is_absolute():
             raise ValueError(f"output must be an absolute path: {output_path}")
@@ -65,5 +68,14 @@ def finish_map(
         status_cb(f"DONE {output_path}")
         return output_path
     except Exception as exc:
-        status_cb(f"FAILED {exc}")
+        detail = str(exc)
+        if staging_root is not None and staging_root.exists():
+            # The staged raw PCD may be the only copy of the mapping session,
+            # so keep it and tell the operator where it is; an empty staging
+            # tree is worthless and would pile up across retries.
+            if raw_pcd is not None and raw_pcd.is_file() and raw_pcd.stat().st_size > 0:
+                detail += f" (partial map retained in {staging_root})"
+            else:
+                shutil.rmtree(staging_root, ignore_errors=True)
+        status_cb(f"FAILED {detail}")
         raise
