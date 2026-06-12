@@ -10,7 +10,23 @@ Start standard bringup with the opt-in argument:
 bash /external/scripts/bringup_tmux.sh map:=/external/maps/office web_ui:=true
 ```
 
-Open `http://<jetson-ip>:8080` from a laptop, tablet, or phone on the robot Wi-Fi. Choose **Set initial pose** or **Send goal**, then press and drag from position toward heading. Drag the map to pan; wheel or pinch to zoom. RViz can remain connected simultaneously.
+Open `http://<jetson-ip>:8080` from a laptop, tablet, or phone on the robot Wi-Fi. RViz can remain connected simultaneously. Drag the map to pan; scroll wheel or pinch to zoom; press **Fit map** to reset the view.
+
+### Step-by-step workflow (mirrors RViz)
+
+1. **Set the initial pose — 2D Pose Estimate**
+   Click **2D Pose Estimate** (same name as in RViz), then on the map drag from the robot's physical position toward the direction it faces and release. The Localization status changes to `CONVERGING`, then `TRACKING` within ~5 s. If it stays `CONVERGING` for more than 5 s, click **2D Pose Estimate** again and pay attention to the heading direction.
+
+2. **Send a navigation goal — 2D Nav Goal**
+   Once Localization shows `TRACKING`, click **2D Nav Goal** (same name as in RViz), then on the map drag from the destination point toward the robot's desired arrival heading and release. The Goal status changes to `ACTIVE`, the blue line shows the planned path, and the green marker shows the active goal. The robot navigates autonomously.
+
+3. **Re-route**
+   Click **2D Nav Goal** again at any time to send a new goal; the previous goal is preempted within one control cycle.
+
+4. **If localization degrades**
+   If Localization shows `DEGRADED` or `LOST`, click **2D Pose Estimate** again to re-initialize. The active goal is automatically canceled.
+
+> The hint text at the bottom of the map updates automatically to reflect the current step.
 
 ## Map preparation
 
