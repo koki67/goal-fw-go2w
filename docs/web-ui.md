@@ -18,7 +18,7 @@ Open `http://<jetson-ip>:8080` from a laptop, tablet, or phone on the robot Wi-F
 bash /external/scripts/prepare_map_tmux.sh output:=/external/maps/office web_ui:=true
 ```
 
-The page shows a low-rate top-down projection rather than streaming the large D-LIO cloud. When coverage is complete, press **Finish & Save** and confirm. Status advances through `SAVING`, `CONVERTING`, and `DONE <path>`. The tmux Enter flow remains available; whichever path completes first wins and the other safely refuses to overwrite the output.
+The page shows a low-rate top-down projection rather than streaming the large D-LIO cloud. When coverage is complete, press **Finish & Save** and confirm. Status advances through `SAVING`, `CONVERTING`, and `DONE <path>`. A few seconds after `DONE`, the whole collection launch (Hesai, IMU, D-LIO, rosbridge, and this page's server) shuts down automatically — the same as Ctrl-C in the tmux `collect` window — so the page switches to `DISCONNECTED` and goal navigation can be started without duplicate publishers. The tmux Enter flow remains available; whichever path completes first wins and the other safely refuses to overwrite the output.
 
 ## Offline and security model
 
@@ -26,7 +26,7 @@ The page shows a low-rate top-down projection rather than streaming the large D-
 
 ## Troubleshooting
 
-- `DISCONNECTED`: verify rosbridge is running, ports 8080/9090 are reachable, and use `?rosbridge_port=<port>` when overriding the websocket port.
+- `DISCONNECTED`: verify rosbridge is running, ports 8080/9090 are reachable, and use `?rosbridge_port=<port>` when overriding the websocket port. Right after `DONE <path>` in preparation mode this is expected: finalization stops the collection launch, including rosbridge.
 - `DETECTING`: wait for `/map` in navigation mode or `/web/prep_grid` in preparation mode.
 - Empty preparation preview: verify `/dlio/map_node/map` is publishing.
 - A late-opened page retries transient-local grid/status subscriptions every three seconds until the first message arrives.

@@ -29,8 +29,9 @@ bash /external/scripts/prepare_map_tmux.sh output:=/external/maps/office
 ```
 
 For a tablet workflow, add `web_ui:=true`, open `http://<jetson-ip>:8080`,
-and use **Finish & Save** after coverage is complete. The Enter flow remains
-available.
+and use **Finish & Save** after coverage is complete. On success it stops the
+collection launch automatically, just like the Enter flow. The Enter flow
+remains available.
 
 The helper fails closed when the teleop node is absent, when goal navigation
 is already active, or when Hesai/IMU/D-LIO collection nodes are already

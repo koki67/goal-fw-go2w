@@ -1,6 +1,8 @@
 """Publish a bounded live mapping preview and expose browser map finalization."""
 from __future__ import annotations
 
+import os
+import signal
 import threading
 import time
 from pathlib import Path
@@ -28,7 +30,8 @@ class PrepWebNode(Node):
         super().__init__("prep_web_node")
         for name, default in (("cloud_topic", "/dlio/map_node/map"), ("output", ""),
                               ("save_leaf_size", 0.05), ("resolution", 0.10),
-                              ("z_min", -0.25), ("z_max", 1.75), ("publish_period_s", 2.0)):
+                              ("z_min", -0.25), ("z_max", 1.75), ("publish_period_s", 2.0),
+                              ("shutdown_after_done_s", 3.0)):
             self.declare_parameter(name, default)
         self._latest = None
         self._latest_frame = "odom"
@@ -96,12 +99,30 @@ class PrepWebNode(Node):
             result = finish_map(output, float(self.get_parameter("save_leaf_size").value), self._save, self._status)
             response.success = True
             response.message = str(result)
+            self._schedule_collect_shutdown()
         except Exception as exc:
             response.success = False
             response.message = str(exc)
         finally:
             self._finish_lock.release()
         return response
+
+    def _schedule_collect_shutdown(self) -> None:
+        delay = float(self.get_parameter("shutdown_after_done_s").value)
+        if delay <= 0.0:
+            return
+
+        def _fire() -> None:
+            # The delay lets the DONE status and the service response reach the
+            # browser through rosbridge before rosbridge itself goes down.
+            time.sleep(delay)
+            self.get_logger().info("Finalization complete; stopping the collection launch.")
+            # The collection launch shares this node's process group, so a
+            # group-wide SIGINT is the same orderly shutdown as Ctrl-C in the
+            # tmux collect window (the Enter path's finish_prepare_map.sh).
+            os.killpg(os.getpgrp(), signal.SIGINT)
+
+        threading.Thread(target=_fire, daemon=True).start()
 
 
 def main(args=None) -> None:

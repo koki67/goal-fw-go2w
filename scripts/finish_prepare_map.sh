@@ -104,6 +104,16 @@ EOF
 read -r
 
 if [ -e "$OUTPUT" ]; then
+    if [ -f "$OUTPUT/grid.yaml" ] && [ -f "$OUTPUT/raw/dlio_map.pcd" ]; then
+        cat <<EOF
+The map was already finalized at: $OUTPUT
+(the browser Finish & Save path also stops the collection launch)
+
+Continue with goal navigation:
+  bash /external/scripts/bringup_tmux.sh map:=$OUTPUT
+EOF
+        exit 0
+    fi
     echo "Output appeared during collection; refusing to overwrite: $OUTPUT" >&2
     exit 1
 fi
