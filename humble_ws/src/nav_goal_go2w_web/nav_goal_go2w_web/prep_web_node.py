@@ -33,8 +33,7 @@ class PrepWebNode(Node):
                               ("z_min", -0.25), ("z_max", 1.75), ("publish_period_s", 2.0),
                               ("shutdown_after_done_s", 3.0)):
             self.declare_parameter(name, default)
-        self._latest = None
-        self._latest_frame = "odom"
+        self._latest_msg = None
         self._cloud_lock = threading.Lock()
         self._finish_lock = threading.Lock()
         self._grid_pub = self.create_publisher(OccupancyGrid, "/web/prep_grid", LATCHED_QOS)
@@ -52,17 +51,20 @@ class PrepWebNode(Node):
         self.get_logger().info(text)
 
     def _cloud_cb(self, msg: PointCloud2) -> None:
-        points = pointcloud2_to_xyz(msg)
+        # D-LIO republishes the whole cumulative map on every keyframe, so only
+        # keep the newest message here; decoding happens once per preview
+        # interval in _publish_grid, not per publication.
         with self._cloud_lock:
-            self._latest = points
-            self._latest_frame = msg.header.frame_id or "odom"
+            self._latest_msg = msg
 
     def _publish_grid(self) -> None:
         with self._cloud_lock:
-            points = self._latest
-            frame = self._latest_frame
-        if points is None:
+            msg = self._latest_msg
+            self._latest_msg = None
+        if msg is None:
             return
+        points = pointcloud2_to_xyz(msg)
+        frame = msg.header.frame_id or "odom"
         grid = project_points(points, resolution=float(self.get_parameter("resolution").value),
             z_min=float(self.get_parameter("z_min").value), z_max=float(self.get_parameter("z_max").value))
         msg = OccupancyGrid()
