@@ -98,66 +98,32 @@ environment slowly and revisit loop closures where practical.
 
 Output: $OUTPUT
 
-Press Enter when collection is complete. This will save D-LIO, stop sensor
-collection, convert the raw cloud, and retain it as raw/dlio_map.pcd.
+Press Enter when collection is complete. This will save D-LIO, convert the raw
+cloud, and retain it as raw/dlio_map.pcd.
 EOF
 read -r
 
 if [ -e "$OUTPUT" ]; then
+    if [ -f "$OUTPUT/grid.yaml" ] && [ -f "$OUTPUT/raw/dlio_map.pcd" ]; then
+        cat <<EOF
+The map was already finalized at: $OUTPUT
+(the browser Finish & Save path also stops the collection launch)
+
+Continue with goal navigation:
+  bash /external/scripts/bringup_tmux.sh map:=$OUTPUT
+EOF
+        exit 0
+    fi
     echo "Output appeared during collection; refusing to overwrite: $OUTPUT" >&2
     exit 1
 fi
 
-OUTPUT_PARENT="$(dirname "$OUTPUT")"
-OUTPUT_NAME="$(basename "$OUTPUT")"
-mkdir -p "$OUTPUT_PARENT"
-STAGING_ROOT="$(mktemp -d "$OUTPUT_PARENT/.${OUTPUT_NAME}.prepare-map.XXXXXX")"
-STAGING_DIR="$STAGING_ROOT/$OUTPUT_NAME"
-RAW_DIR="$STAGING_DIR/raw"
-RAW_PCD="$RAW_DIR/dlio_map.pcd"
-mkdir -p "$RAW_DIR"
-
-echo "Saving D-LIO map to staging directory: $RAW_DIR"
-SAVE_RESPONSE="$(
-    ros2 service call \
-        "$SAVE_SERVICE" \
-        direct_lidar_inertial_odometry/srv/SavePCD \
-        "{leaf_size: $SAVE_LEAF_SIZE, save_path: \"$RAW_DIR\"}"
-)"
-printf '%s\n' "$SAVE_RESPONSE"
-
-if ! printf '%s\n' "$SAVE_RESPONSE" |
-    grep -Eq 'success[=:][[:space:]]*(True|true)'; then
-    echo "D-LIO reported a failed save. Staging data retained at: $STAGING_DIR" >&2
-    exit 1
-fi
-
-if [ ! -s "$RAW_PCD" ]; then
-    echo "D-LIO reported success but did not create a non-empty $RAW_PCD." >&2
-    echo "Staging data retained at: $STAGING_DIR" >&2
-    exit 1
-fi
+ros2 run nav_goal_go2w_map finish_map \
+    --output "$OUTPUT" \
+    --save-leaf-size "$SAVE_LEAF_SIZE"
 
 echo "Stopping the collection launch."
 tmux send-keys -t "${SESSION}:collect" C-c
-sleep 2
-
-echo "Preparing navigation map artifacts."
-if ! ros2 run nav_goal_go2w_map prepare_map \
-    --input "$RAW_PCD" \
-    --output "$STAGING_DIR"; then
-    echo "Map conversion failed. Raw data retained at: $RAW_PCD" >&2
-    exit 1
-fi
-
-if [ -e "$OUTPUT" ]; then
-    echo "Output appeared during conversion; refusing to overwrite: $OUTPUT" >&2
-    echo "Prepared staging data retained at: $STAGING_DIR" >&2
-    exit 1
-fi
-
-mv "$STAGING_DIR" "$OUTPUT"
-rmdir "$STAGING_ROOT"
 
 cat <<EOF
 

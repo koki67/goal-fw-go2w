@@ -49,6 +49,7 @@ http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" \
         ros-humble-ros2bag \
         ros-humble-rosbag2-storage-default-plugins \
         ros-humble-robot-state-publisher \
+        ros-humble-rosbridge-suite \
         ros-humble-rviz2 \
         ros-humble-rmw-cyclonedds-cpp \
         ros-humble-pcl-conversions \

@@ -15,3 +15,9 @@ The packages under `humble_ws/src/` that are not authored in this repo were copi
 - **D-LIO**: `launch/dlio.launch.py:80` — added `('map', 'dlio/map_node/map')` remap on `dlio_map_node` so D-LIO's PointCloud2 map publication does not collide with the map_server's `OccupancyGrid` on `/map`.
 
 When updating any vendored package, re-apply the local modifications above and update the SHA column.
+
+## Browser asset
+
+| Asset | Version | License | Source |
+|---|---|---|---|
+| `nav_goal_go2w_web/www/vendor/roslib.min.js` | 1.4.1 | BSD-3-Clause | `https://cdn.jsdelivr.net/npm/roslib@1.4.1/build/roslib.min.js` |

@@ -134,6 +134,7 @@ def _result_recording_bag_actions(context, *args, **kwargs):
 def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     use_rviz = LaunchConfiguration("use_rviz")
+    web_ui = LaunchConfiguration("web_ui")
     map_dir = LaunchConfiguration("map")
     bridge_dry_run = LaunchConfiguration("bridge_dry_run")
     vx_max = LaunchConfiguration("vx_max")
@@ -180,6 +181,10 @@ def generate_launch_description():
                               description="Use /clock from a bag or sim."),
         DeclareLaunchArgument("use_rviz", default_value="false",
                               description="Start RViz with the goal navigation config."),
+        DeclareLaunchArgument("web_ui", default_value="false",
+                              description="Start the browser operator interface."),
+        DeclareLaunchArgument("web_ui_port", default_value="8080"),
+        DeclareLaunchArgument("rosbridge_port", default_value="9090"),
         DeclareLaunchArgument("bridge_dry_run", default_value="true",
                               description="Bridge logs Move/Stop without publishing /api/sport/request."),
         DeclareLaunchArgument("vx_max", default_value="0.30"),
@@ -355,6 +360,15 @@ def generate_launch_description():
         parameters=[{"use_sim_time": use_sim_time}],
     )
 
+    web_ui_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(PathJoinSubstitution([
+            FindPackageShare("nav_goal_go2w_web"), "launch", "web_ui.launch.py",
+        ])),
+        condition=IfCondition(web_ui),
+        launch_arguments={"use_sim_time": use_sim_time, "http_port": LaunchConfiguration("web_ui_port"),
+                          "rosbridge_port": LaunchConfiguration("rosbridge_port"), "prep_mode": "false"}.items(),
+    )
+
     runtime_actions = [
         static_tf_imu,
         static_tf_lidar,
@@ -368,6 +382,7 @@ def generate_launch_description():
         planner_include,
         bridge_include,
         rviz_node,
+        web_ui_include,
     ]
 
     def _runtime_actions(context, *args, **kwargs):

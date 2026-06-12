@@ -11,7 +11,7 @@ space as plannable and relies on the live local costmap for reality.
 ```
 prepare-map phase:
 external gamepad ─► /api/sport/request ─► Go2W motion
-Hesai + Go2W IMU ─► D-LIO ─► /dlio_map_node/save_pcd ─► raw/dlio_map.pcd
+Hesai + Go2W IMU ─► D-LIO ─► /save_pcd ─► raw/dlio_map.pcd
 raw/dlio_map.pcd ─► prepare_map ─► maps/<name>/{map.pcd, viz.pcd, grid.pgm, grid.yaml, metadata.yaml}
 
 offline:  raw.pcd ──prepare_map──► maps/<name>/{map.pcd, viz.pcd, grid.pgm, grid.yaml, metadata.yaml}

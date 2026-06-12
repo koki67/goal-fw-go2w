@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Go2-W Operator</title><link rel="stylesheet" href="css/style.css"></head>
+<body><header><strong>Go2-W Operator</strong><span id="connection" class="badge bad">DISCONNECTED</span><span id="mode" class="badge">DETECTING</span></header>
+<main><section id="map-wrap"><canvas id="map"></canvas><canvas id="map3d" class="hidden"></canvas><div id="hint">Drag to pan. Choose a pose tool, then drag position to heading.</div></section>
+<aside><div class="card"><h2>Status</h2><div class="metric"><span>Localization</span><b id="localization">-</b></div><div class="metric"><span>Goal</span><b id="goal-status">-</b></div><div class="metric"><span>Fitness</span><b id="fitness">-</b></div><div class="metric"><span>Prep</span><b id="prep-status">-</b></div></div>
+<div id="nav-controls" class="card"><h2>Navigation</h2><button id="initial">2D Pose Estimate</button><button id="goal" class="primary">2D Nav Goal</button></div>
+<div id="prep-controls" class="card hidden"><h2>Map Preparation</h2><p>The preview is a low-rate downsampled snapshot (top-down or 3D View). Continue driving until coverage is complete.</p><button id="finish" class="danger">Finish &amp; Save</button></div>
+<div class="card small"><button id="view-toggle">3D View</button><button id="fit">Fit map</button><span id="tool">Tool: pan</span></div></aside></main>
+<script src="vendor/roslib.min.js"></script><script src="js/map_renderer.js"></script><script src="js/cloud_renderer.js"></script><script src="js/app.js"></script></body></html>

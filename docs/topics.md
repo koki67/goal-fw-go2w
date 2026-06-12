@@ -17,6 +17,9 @@
 |---|---|---|---|
 | `/map` | nav_msgs/OccupancyGrid | nav2_map_server | TRANSIENT_LOCAL; from `grid.yaml`; global costmap static layer + goal validation |
 | `/map_cloud` | sensor_msgs/PointCloud2 | map_cloud_publisher | TRANSIENT_LOCAL, frame `map`; viz.pcd for RViz; slow republish for lossy Wi-Fi |
+| `/web/prep_grid` | nav_msgs/OccupancyGrid | prep_web_node | TRANSIENT_LOCAL bounded top-down preview for browsers |
+| `/web/prep_cloud` | sensor_msgs/PointCloud2 | prep_web_node | TRANSIENT_LOCAL voxel-downsampled D-LIO map for the browser 3D view |
+| `/web/prep_status` | std_msgs/String | prep_web_node | TRANSIENT_LOCAL; IDLE / SAVING / CONVERTING / DONE / FAILED |
 
 ## Localization
 
@@ -61,4 +64,5 @@
 
 | Service | Type | Server | Notes |
 |---|---|---|---|
-| `/dlio_map_node/save_pcd` | direct_lidar_inertial_odometry/srv/SavePCD | D-LIO map node | writes `dlio_map.pcd` during prepare-map finalization |
+| `/save_pcd` | direct_lidar_inertial_odometry/srv/SavePCD | D-LIO map node | writes `dlio_map.pcd` during prepare-map finalization |
+| `/web/finish_map` | std_srvs/Trigger | prep_web_node | atomically save and prepare the configured map output |

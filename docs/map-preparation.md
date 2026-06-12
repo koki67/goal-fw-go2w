@@ -28,6 +28,11 @@ Inside the goal-fw-go2w container:
 bash /external/scripts/prepare_map_tmux.sh output:=/external/maps/office
 ```
 
+For a tablet workflow, add `web_ui:=true`, open `http://<jetson-ip>:8080`,
+and use **Finish & Save** after coverage is complete. On success it stops the
+collection launch automatically, just like the Enter flow. The Enter flow
+remains available.
+
 The helper fails closed when the teleop node is absent, when goal navigation
 is already active, or when Hesai/IMU/D-LIO collection nodes are already
 running. It also refuses to overwrite an existing output directory.
@@ -36,8 +41,8 @@ The tmux session has two windows:
 
 - `collect`: Hesai driver + Go2W IMU publisher + D-LIO; no Nav2, localizer,
   velocity bridge, or teleop node is launched by this repository
-- `finish`: waits for `/dlio_map_node/save_pcd`; drive the robot, then press
-  Enter here to save, stop collection, and run the existing `prepare_map` CLI
+- `finish`: waits for `/save_pcd`; drive the robot, then press
+  Enter here to save and convert the map, then stop collection
 
 Useful collection options:
 
@@ -46,6 +51,7 @@ Useful collection options:
 | `use_rviz:=true` | `false` | start D-LIO's live map/path RViz view |
 | `dlio_output:=log` | `screen` | send D-LIO output to ROS logs |
 | `save_leaf_size:=0.05` | `0.05` | D-LIO save-time voxel leaf size [m] |
+| `web_ui:=true` | `false` | start the browser preview and finish panel |
 
 The finished directory is immediately usable with standard goal navigation:
 
@@ -72,7 +78,7 @@ ros2 run nav_goal_go2w_map prepare_map \
 While (or after) the frontier stack runs, save D-LIO's aggregated map:
 
 ```bash
-ros2 service call /dlio_map_node/save_pcd direct_lidar_inertial_odometry/srv/SavePCD \
+ros2 service call /save_pcd direct_lidar_inertial_odometry/srv/SavePCD \
     "{leaf_size: 0.05, save_path: '/external/maps'}"
 ```
 

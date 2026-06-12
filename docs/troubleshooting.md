@@ -39,14 +39,16 @@ Stop goal navigation or the previous mapping session before collecting. The
 helper rejects `/velocity_bridge` and duplicate Hesai/IMU/D-LIO nodes so two
 systems cannot command or process the robot concurrently.
 
-**Finish window waits forever for `/dlio_map_node/save_pcd`**
+**Finish window waits forever for `/save_pcd`**
 Inspect the `collect` window and check `ros2 topic hz /points_raw /go2w/imu`.
 D-LIO must start successfully before its map-save service appears.
 
 **Save or conversion failed after pressing Enter**
-The requested output directory is not published on failure. The finish window
-prints the hidden staging directory containing any successfully saved raw PCD;
-use it to diagnose or rerun `prepare_map` manually.
+The requested output directory is not published on failure. The failure status
+(finish window log or `/web/prep_status`) prints the hidden staging directory
+containing any successfully saved raw PCD; use it to diagnose or rerun
+`prepare_map` manually, and delete it once recovered. Staging directories that
+hold no saved PCD are removed automatically.
 
 **Floor shows as obstacles in grid.pgm**
 Ground bleed: raise `--obstacle-z-min` (e.g. 0.20), check the source cloud
