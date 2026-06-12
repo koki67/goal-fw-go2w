@@ -16,6 +16,31 @@ RViz 2D Nav Goal ─► goal executor ─► Nav2 (NavFn + MPPI) ─► velocity
 
 ## Workflow
 
+### Browser UI deployment model
+
+Run the framework and browser UI on the robot's onboard Jetson, then open the page
+from a separate laptop, tablet, or phone:
+
+```
+operator device browser -> HTTP :8080 / WebSocket :9090 -> Jetson -> ROS 2 -> Go2W
+```
+
+The operator device does not run this repository or need ROS 2. It only needs
+to be on a network that can reach the Jetson. A remote-desktop/VNC session is
+not required: open a local browser on the operator device and navigate to
+`http://<jetson-ip>:8080`. The Jetson serves the page and rosbridge connects
+the page to the ROS 2 graph.
+
+To find the address, run `hostname -I` on the Jetson and use the address on
+the network shared with the operator device. For example, if it reports
+`192.168.1.42`, open `http://192.168.1.42:8080`.
+
+The browser UI is opt-in. Pass `web_ui:=true` to either map preparation or
+navigation bringup. Because `docker/run.sh` uses host networking, no Docker
+port publishing is needed. Ports 8080 and 9090 must be reachable from the
+operator device. They have no authentication or TLS, so expose them only on
+the trusted robot LAN.
+
 ### Step 1 — Build the map (once per environment)
 
 Map preparation requires the separately deployed
@@ -27,11 +52,16 @@ This framework never publishes motion commands during mapping.
 bash scripts/build_image.sh          # once, on the Jetson
 bash docker/run.sh
 # inside the container:
-bash /external/scripts/prepare_map_tmux.sh output:=/external/maps/office
+bash /external/scripts/prepare_map_tmux.sh \
+  output:=/external/maps/office \
+  web_ui:=true
 ```
 
-Add `web_ui:=true` and open `http://<jetson-ip>:8080` for the tablet/browser
-preparation view and finish button.
+On the operator device, open `http://<jetson-ip>:8080`. The browser shows a
+low-rate top-down preview while you drive the robot with the gamepad. When
+coverage is complete, press **Finish & Save** and confirm. The page progresses
+through `SAVING`, `CONVERTING`, and `DONE`, then disconnects when collection
+shuts down. Pressing Enter in the tmux `finish` window remains an alternative.
 
 Two tmux windows open:
 
@@ -67,11 +97,14 @@ Stop the external teleop before this step — both it and the navigation
 velocity bridge publish `/api/sport/request`.
 
 ```bash
-bash /external/scripts/bringup_tmux.sh map:=/external/maps/office
+bash /external/scripts/bringup_tmux.sh \
+  map:=/external/maps/office \
+  web_ui:=true
 ```
 
-Add `web_ui:=true` and open `http://<jetson-ip>:8080` to set the initial pose
-and send goals from a browser. RViz remains available independently.
+On the operator device, open or reload `http://<jetson-ip>:8080`. Use this
+same page to set the initial pose and send navigation goals. RViz remains
+available independently, but is not required for the browser workflow.
 
 Three tmux windows start simultaneously:
 
@@ -99,21 +132,22 @@ Until you do this, the `map` TF frame does not exist and Nav2 is completely
 inert. This is intentional — the safety property is that the robot cannot
 receive navigation commands before localization is established.
 
-In RViz:
+In the browser UI:
 
-1. Click **2D Pose Estimate**
+1. Choose **Set initial pose**
 2. Click the robot's actual position on the map and drag toward its heading
    (yaw accuracy matters more than position accuracy)
 3. Watch the `health` window: `UNINITIALIZED → CONVERGING → TRACKING`
 
 If it stays in CONVERGING after ~5 s, click again with a better yaw estimate.
+The equivalent RViz tool is **2D Pose Estimate**.
 
 ---
 
 ### Step 4 — Navigate
 
-1. In RViz, click **2D Nav Goal** and click a destination (drag sets the
-   final heading)
+1. In the browser UI, choose **Send goal**, then click a destination and drag
+   toward the desired final heading
 2. The robot navigates autonomously — NavFn plans the global path, MPPI Omni
    executes it
 3. Click a new goal at any time to preempt the current one
@@ -122,6 +156,9 @@ If it stays in CONVERGING after ~5 s, click again with a better yaw estimate.
 
 Goals are **rejected** when localization is not TRACKING/DEGRADED, or the
 goal cell is marked occupied on `/map`.
+
+The equivalent RViz tool is **2D Nav Goal**. The browser page publishes only
+`/initialpose` and `/goal_pose`; it never publishes velocity commands.
 
 ---
 
