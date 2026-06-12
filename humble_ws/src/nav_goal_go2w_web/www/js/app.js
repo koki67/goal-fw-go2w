@@ -1,5 +1,6 @@
 const $=id=>document.getElementById(id);let ros,topics=[],mode='detecting',subscriptions=[],modeTimer=null,locState='',goalState='';
-const renderer=new MapRenderer($('map'),publishPose);
+const renderer=new MapRenderer($('map'),publishPose),renderer3d=new CloudRenderer($('map3d'));let view3d=false;
+function setView(on){view3d=on;$('map').classList.toggle('hidden',on);$('map3d').classList.toggle('hidden',!on);$('view-toggle').textContent=on?'2D View':'3D View';updateHint()}
 function badge(text,good=false){$('connection').textContent=text;$('connection').className='badge '+(good?'good':'bad')}
 function connect(){let port=new URLSearchParams(location.search).get('rosbridge_port')||'9090';ros=new ROSLIB.Ros({url:`ws://${location.hostname}:${port}`});ros.on('connection',()=>{badge('CONNECTED',true);setup()});ros.on('close',()=>{badge('DISCONNECTED');clearSubs();setTimeout(connect,2000)});ros.on('error',()=>badge('CONNECTION ERROR'))}
 function clearSubs(){subscriptions.forEach(t=>t.unsubscribe());subscriptions=[];clearInterval(modeTimer);modeTimer=null}
@@ -12,17 +13,18 @@ function subscribeCommon(){latched('/localization/state','std_msgs/String',m=>{$
 function subscribeMode(){
   if(mode==='navigation'){
     latched('/map','nav_msgs/OccupancyGrid',m=>renderer.setGrid(m),{compression:'cbor'});
-    latched('/map_cloud','sensor_msgs/PointCloud2',m=>{const c=decodePC2(m);if(c)renderer.setCloud(c)},{compression:'cbor'});
-    topic('/localization/pose','geometry_msgs/PoseWithCovarianceStamped',m=>renderer.setRobot(pose(m.pose.pose)),{throttle:200});
-    topic('/plan','nav_msgs/Path',m=>renderer.setPath(m.poses.map(p=>({x:p.pose.position.x,y:p.pose.position.y}))),{throttle:500});
-    topic('/goal_markers','visualization_msgs/MarkerArray',m=>renderer.setMarkers(m.markers.filter(x=>x.type===0||x.type===2).map(x=>({x:x.pose.position.x,y:x.pose.position.y,color:rgba(x.color)}))))
+    latched('/map_cloud','sensor_msgs/PointCloud2',m=>{const c=decodePC2(m);if(c){renderer.setCloud(c);renderer3d.setCloud(c)}},{compression:'cbor'});
+    topic('/localization/pose','geometry_msgs/PoseWithCovarianceStamped',m=>{const p=pose(m.pose.pose);renderer.setRobot(p);renderer3d.setRobot(p)},{throttle:200});
+    topic('/plan','nav_msgs/Path',m=>{const p=m.poses.map(q=>({x:q.pose.position.x,y:q.pose.position.y}));renderer.setPath(p);renderer3d.setPath(p)},{throttle:500});
+    topic('/goal_markers','visualization_msgs/MarkerArray',m=>{const ms=m.markers.filter(x=>x.type===0||x.type===2).map(x=>({x:x.pose.position.x,y:x.pose.position.y,color:rgba(x.color)}));renderer.setMarkers(ms);renderer3d.setMarkers(ms)})
   }else if(mode==='preparation'){
     latched('/web/prep_grid','nav_msgs/OccupancyGrid',m=>renderer.setGrid(m),{compression:'cbor'});
-    topic('/dlio/odom_node/odom','nav_msgs/Odometry',m=>renderer.setRobot(pose(m.pose.pose)),{throttle:200});
+    latched('/web/prep_cloud','sensor_msgs/PointCloud2',m=>{const c=decodePC2(m);if(c){renderer.setCloud(c);renderer3d.setCloud(c)}},{compression:'cbor'});
+    topic('/dlio/odom_node/odom','nav_msgs/Odometry',m=>{const p=pose(m.pose.pose);renderer.setRobot(p);renderer3d.setRobot(p)},{throttle:200});
     latched('/web/prep_status','std_msgs/String',m=>{$('prep-status').textContent=m.data;$('finish').disabled=/^(SAVING|CONVERTING)/.test(m.data)})
   }
 }
-function yaw(q){return Math.atan2(2*(q.w*q.z+q.x*q.y),1-2*(q.y*q.y+q.z*q.z))}function pose(p){return{x:p.position.x,y:p.position.y,yaw:yaw(p.orientation)}}function rgba(c){return`rgba(${c.r*255},${c.g*255},${c.b*255},${c.a})`}
+function yaw(q){return Math.atan2(2*(q.w*q.z+q.x*q.y),1-2*(q.y*q.y+q.z*q.z))}function pose(p){return{x:p.position.x,y:p.position.y,z:p.position.z||0,yaw:yaw(p.orientation)}}function rgba(c){return`rgba(${c.r*255},${c.g*255},${c.b*255},${c.a})`}
 function decodePC2(msg){
   const f={};for(const x of msg.fields)f[x.name]=x;
   if(!f.x||!f.y||!f.z)return null;
@@ -35,6 +37,7 @@ function decodePC2(msg){
 }
 function updateHint(){
   const tool=renderer.tool;
+  if(view3d){$('hint').textContent='3D view — drag to orbit, scroll or pinch to zoom, right/Shift-drag to pan. Pose tools switch back to 2D.';return}
   if(mode!=='navigation'){$('hint').textContent=mode==='preparation'?'Drive to build map coverage. Press "Finish & Save" when done.':'Waiting for navigation map...';return}
   if(tool==='initial'){$('hint').textContent='Drag from the robot\'s position toward its heading, then release.';return}
   if(tool==='goal'){$('hint').textContent='Drag from the destination toward the arrival heading, then release.';return}
@@ -50,6 +53,7 @@ function updateHint(){
   }
 }
 function publishPose(tool,start,end){if(mode!=='navigation')return;let a=Math.atan2(end.y-start.y,end.x-start.x),q={x:0,y:0,z:Math.sin(a/2),w:Math.cos(a/2)},stamp={secs:0,nsecs:0};if(tool==='goal')new ROSLIB.Topic({ros,name:'/goal_pose',messageType:'geometry_msgs/PoseStamped'}).publish({header:{stamp,frame_id:'map'},pose:{position:{x:start.x,y:start.y,z:0},orientation:q}});if(tool==='initial'){let cov=Array(36).fill(0);cov[0]=.25;cov[7]=.25;cov[35]=.0685;new ROSLIB.Topic({ros,name:'/initialpose',messageType:'geometry_msgs/PoseWithCovarianceStamped'}).publish({header:{stamp,frame_id:'map'},pose:{pose:{position:{x:start.x,y:start.y,z:0},orientation:q},covariance:cov}})}renderer.setTool('pan');$('tool').textContent='Tool: pan';updateHint()}
-$('initial').onclick=()=>{renderer.setTool('initial');$('tool').textContent='Tool: 2D Pose Estimate';updateHint()};
-$('goal').onclick=()=>{renderer.setTool('goal');$('tool').textContent='Tool: 2D Nav Goal';updateHint()};
-$('fit').onclick=()=>renderer.fit();$('finish').onclick=()=>{if(!confirm('Save and convert the current map?'))return;$('finish').disabled=true;new ROSLIB.Service({ros,name:'/web/finish_map',serviceType:'std_srvs/Trigger'}).callService({},r=>{if(!r.success)alert(r.message);$('finish').disabled=false})};connect();
+$('initial').onclick=()=>{setView(false);renderer.setTool('initial');$('tool').textContent='Tool: 2D Pose Estimate';updateHint()};
+$('goal').onclick=()=>{setView(false);renderer.setTool('goal');$('tool').textContent='Tool: 2D Nav Goal';updateHint()};
+$('view-toggle').onclick=()=>setView(!view3d);
+$('fit').onclick=()=>view3d?renderer3d.fit():renderer.fit();$('finish').onclick=()=>{if(!confirm('Save and convert the current map?'))return;$('finish').disabled=true;new ROSLIB.Service({ros,name:'/web/finish_map',serviceType:'std_srvs/Trigger'}).callService({},r=>{if(!r.success)alert(r.message);$('finish').disabled=false})};connect();

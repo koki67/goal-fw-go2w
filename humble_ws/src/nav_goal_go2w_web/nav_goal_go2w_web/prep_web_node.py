@@ -15,11 +15,12 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import String
+from sensor_msgs_py import point_cloud2
+from std_msgs.msg import Header, String
 from std_srvs.srv import Trigger
 
 from nav_goal_go2w_map.finish_map_core import finish_map
-from nav_goal_go2w_web.prep_grid_core import pointcloud2_to_xyz, project_points
+from nav_goal_go2w_web.prep_grid_core import downsample_voxel, pointcloud2_to_xyz, project_points
 
 LATCHED_QOS = QoSProfile(reliability=ReliabilityPolicy.RELIABLE,
     durability=DurabilityPolicy.TRANSIENT_LOCAL, history=HistoryPolicy.KEEP_LAST, depth=1)
@@ -31,12 +32,14 @@ class PrepWebNode(Node):
         for name, default in (("cloud_topic", "/dlio/map_node/map"), ("output", ""),
                               ("save_leaf_size", 0.05), ("resolution", 0.10),
                               ("z_min", -0.25), ("z_max", 1.75), ("publish_period_s", 2.0),
+                              ("preview_leaf_size", 0.15), ("preview_max_points", 150_000),
                               ("shutdown_after_done_s", 3.0)):
             self.declare_parameter(name, default)
         self._latest_msg = None
         self._cloud_lock = threading.Lock()
         self._finish_lock = threading.Lock()
         self._grid_pub = self.create_publisher(OccupancyGrid, "/web/prep_grid", LATCHED_QOS)
+        self._cloud_pub = self.create_publisher(PointCloud2, "/web/prep_cloud", LATCHED_QOS)
         self._status_pub = self.create_publisher(String, "/web/prep_status", LATCHED_QOS)
         self._save_group = ReentrantCallbackGroup()
         self._service_group = MutuallyExclusiveCallbackGroup()
@@ -65,20 +68,24 @@ class PrepWebNode(Node):
             return
         points = pointcloud2_to_xyz(msg)
         frame = msg.header.frame_id or "odom"
+        stamp = self.get_clock().now().to_msg()
         grid = project_points(points, resolution=float(self.get_parameter("resolution").value),
             z_min=float(self.get_parameter("z_min").value), z_max=float(self.get_parameter("z_max").value))
-        msg = OccupancyGrid()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = frame
-        msg.info.map_load_time = msg.header.stamp
-        msg.info.resolution = grid.resolution
-        msg.info.width = grid.width
-        msg.info.height = grid.height
-        msg.info.origin.position.x = grid.origin_x
-        msg.info.origin.position.y = grid.origin_y
-        msg.info.origin.orientation.w = 1.0
-        msg.data = grid.data.tolist()
-        self._grid_pub.publish(msg)
+        grid_msg = OccupancyGrid()
+        grid_msg.header.stamp = stamp
+        grid_msg.header.frame_id = frame
+        grid_msg.info.map_load_time = stamp
+        grid_msg.info.resolution = grid.resolution
+        grid_msg.info.width = grid.width
+        grid_msg.info.height = grid.height
+        grid_msg.info.origin.position.x = grid.origin_x
+        grid_msg.info.origin.position.y = grid.origin_y
+        grid_msg.info.origin.orientation.w = 1.0
+        grid_msg.data = grid.data.tolist()
+        self._grid_pub.publish(grid_msg)
+        preview = downsample_voxel(points, leaf=float(self.get_parameter("preview_leaf_size").value),
+            max_points=int(self.get_parameter("preview_max_points").value))
+        self._cloud_pub.publish(point_cloud2.create_cloud_xyz32(Header(stamp=stamp, frame_id=frame), preview))
 
     def _save(self, raw_dir: Path, leaf: float) -> None:
         if not self._save_client.wait_for_service(timeout_sec=5.0):

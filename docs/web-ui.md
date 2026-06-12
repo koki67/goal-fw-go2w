@@ -12,6 +12,10 @@ bash /external/scripts/bringup_tmux.sh map:=/external/maps/office web_ui:=true
 
 Open `http://<jetson-ip>:8080` from a laptop, tablet, or phone on the robot Wi-Fi. RViz can remain connected simultaneously. Drag the map to pan; scroll wheel or pinch to zoom; press **Fit map** to reset the view.
 
+### 3D point cloud view
+
+Press **3D View** to switch the map area to a perspective point cloud rendered like RViz: points are colored by height, with the robot pose (white triangle), planned path (blue line), and active goal (green marker) overlaid. Drag to orbit, scroll or pinch to zoom, right-drag (or Shift-drag, or two-finger drag) to pan, and **Fit map** to re-center on the cloud. In navigation mode the view shows the latched `/map_cloud`; in preparation mode it shows `/web/prep_cloud`, a voxel-downsampled snapshot of the live D-LIO map refreshed every preview interval (`preview_leaf_size` / `preview_max_points` parameters bound the bandwidth). The pose tools remain top-down operations: selecting **2D Pose Estimate** or **2D Nav Goal** switches back to the 2D view automatically. Rendering uses plain WebGL with no extra dependencies, so the page stays build-free and offline.
+
 ### Step-by-step workflow (mirrors RViz)
 
 1. **Set the initial pose — 2D Pose Estimate**
@@ -34,7 +38,7 @@ Open `http://<jetson-ip>:8080` from a laptop, tablet, or phone on the robot Wi-F
 bash /external/scripts/prepare_map_tmux.sh output:=/external/maps/office web_ui:=true
 ```
 
-The page shows a low-rate top-down projection rather than streaming the large D-LIO cloud. When coverage is complete, press **Finish & Save** and confirm. Status advances through `SAVING`, `CONVERTING`, and `DONE <path>`. A few seconds after `DONE`, the whole collection launch (Hesai, IMU, D-LIO, rosbridge, and this page's server) shuts down automatically — the same as Ctrl-C in the tmux `collect` window — so the page switches to `DISCONNECTED` and goal navigation can be started without duplicate publishers. The tmux Enter flow remains available; whichever path completes first wins and the other safely refuses to overwrite the output.
+The page shows a low-rate preview rather than streaming the full D-LIO cloud: a top-down projection by default, or a voxel-downsampled 3D cloud via the **3D View** button. When coverage is complete, press **Finish & Save** and confirm. Status advances through `SAVING`, `CONVERTING`, and `DONE <path>`. A few seconds after `DONE`, the whole collection launch (Hesai, IMU, D-LIO, rosbridge, and this page's server) shuts down automatically — the same as Ctrl-C in the tmux `collect` window — so the page switches to `DISCONNECTED` and goal navigation can be started without duplicate publishers. The tmux Enter flow remains available; whichever path completes first wins and the other safely refuses to overwrite the output.
 
 ## Offline and security model
 

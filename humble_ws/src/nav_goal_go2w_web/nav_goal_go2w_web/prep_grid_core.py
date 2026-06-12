@@ -29,6 +29,23 @@ def pointcloud2_to_xyz(msg) -> np.ndarray:
     return points[np.isfinite(points).all(axis=1)]
 
 
+def downsample_voxel(points: np.ndarray, leaf: float = 0.15, max_points: int = 150_000) -> np.ndarray:
+    """Keep one point per voxel, then stride-decimate down to the point budget."""
+    points = np.asarray(points, dtype=np.float32)
+    if leaf <= 0 or max_points <= 0:
+        raise ValueError("invalid downsample parameters")
+    if len(points):
+        keys = np.floor(points / leaf).astype(np.int64)
+        keys -= keys.min(axis=0)
+        dims = keys.max(axis=0) + 1
+        flat = (keys[:, 0] * dims[1] + keys[:, 1]) * dims[2] + keys[:, 2]
+        _, index = np.unique(flat, return_index=True)
+        points = points[np.sort(index)]
+    if len(points) > max_points:
+        points = points[::-(-len(points) // max_points)]
+    return points
+
+
 def project_points(points: np.ndarray, resolution: float = 0.10, z_min: float = -0.25,
                    z_max: float = 1.75, max_cells: int = 1_000_000) -> PrepGrid:
     points = np.asarray(points, dtype=np.float32)

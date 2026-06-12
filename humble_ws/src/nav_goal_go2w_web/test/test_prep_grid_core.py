@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from nav_goal_go2w_web.prep_grid_core import project_points
+from nav_goal_go2w_web.prep_grid_core import downsample_voxel, project_points
 
 
 def test_projects_z_band_to_occupied_grid():
@@ -23,3 +23,22 @@ def test_large_grid_is_coarsened():
 def test_invalid_parameters_rejected():
     with pytest.raises(ValueError):
         project_points(np.empty((0, 3)), resolution=0)
+
+
+def test_downsample_keeps_one_point_per_voxel():
+    points = np.array([[0, 0, 0], [0.01, 0.01, 0.01], [1, 1, 1]], dtype=np.float32)
+    out = downsample_voxel(points, leaf=0.1)
+    assert len(out) == 2
+    assert out.tolist()[0] == [0, 0, 0]
+
+
+def test_downsample_caps_point_budget():
+    points = np.random.default_rng(0).random((5000, 3)).astype(np.float32) * 100
+    out = downsample_voxel(points, leaf=0.01, max_points=1000)
+    assert len(out) <= 1000
+
+
+def test_downsample_empty_and_invalid():
+    assert len(downsample_voxel(np.empty((0, 3), dtype=np.float32))) == 0
+    with pytest.raises(ValueError):
+        downsample_voxel(np.empty((0, 3)), leaf=0)
